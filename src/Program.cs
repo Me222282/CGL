@@ -22,6 +22,7 @@ namespace cgl
             : base(width, height, title)
         {
             _size = (width / 2, height / 2);
+            //_size = (1000, 1000);
             //_size = (20, 20);
             
             _map = new GLArray<byte>(_size);
@@ -29,7 +30,6 @@ namespace cgl
             
             _checkMap = new GLArray<bool>(_size);
             _checkTemp = new GLArray<bool>(_size);
-            _ertfgyh = new GLArray<Colour>(_size);
             
             _texture = new Texture2D(TextureFormat.R8, TextureData.Byte);
             _texture.SetData<byte>(_size.X, _size.Y, BaseFormat.R, null);
@@ -38,30 +38,21 @@ namespace cgl
             _texture.MinFilter = TextureSampling.Nearest;
             _texture.WrapStyle = WrapStyle.EdgeClamp;
             
-            _texture2 = new Texture2D(TextureFormat.Rgba8, TextureData.Byte);
-            _texture2.SetData<byte>(_size.X, _size.Y, BaseFormat.Rgba, null);
-            _texture2.SetData(_size.X, _size.Y, BaseFormat.R, _map);
-            _texture2.MagFilter = TextureSampling.Nearest;
-            _texture2.MinFilter = TextureSampling.Nearest;
-            _texture2.WrapStyle = WrapStyle.EdgeClamp;
-            
             _shad = new BoolShader();
             
-            DrawContext.RenderState.Blending = true;
-            DrawContext.RenderState.SourceScaleBlending = BlendFunction.SourceAlpha;
-            DrawContext.RenderState.DestinationScaleBlending = BlendFunction.OneMinusSourceAlpha;
+            // DrawContext.RenderState.Blending = true;
+            // DrawContext.RenderState.SourceScaleBlending = BlendFunction.SourceAlpha;
+            // DrawContext.RenderState.DestinationScaleBlending = BlendFunction.OneMinusSourceAlpha;
         }
         
         private BoolShader _shad;
         private Texture2D _texture;
-        private Texture2D _texture2;
         
         private GLArray<byte> _map;
         private GLArray<byte> _temp;
         
         private GLArray<bool> _checkMap;
         private GLArray<bool> _checkTemp;
-        private GLArray<Colour> _ertfgyh;
         private Vector2I _size;
         private bool _applied = false;
         private bool _palying  = false;
@@ -103,18 +94,8 @@ namespace cgl
             
             Ignore:
             _texture.EditData(0, 0, _size.X, _size.Y, BaseFormat.R, _map);
-            for (int x = 0; x < _size.X; x++)
-            {
-                for (int y = 0; y < _size.Y; y++)
-                {
-                    _ertfgyh[x, y] = _checkMap[x, y] ? new Colour(255, 0, 0, 100) : Colour.Zero;
-                }
-            }
-            _texture2.EditData(0, 0, _size.X, _size.Y, BaseFormat.Rgba, _ertfgyh);
             //_texture.SetData(_size.X, _size.Y, BaseFormat.R, _map);
             Draw(e.Context, new Box(0d, Size));
-            e.Context.Model = Matrix.Identity;
-            e.Context.DrawBox(new Box(0d, Size), _texture2);
         }
         
         private void Draw(IDrawingContext dc, IBox bounds)
@@ -185,11 +166,11 @@ namespace cgl
             }
             if (this[Mods.Shift])
             {
-                _pan += new Vector2(-e.DeltaY, e.DeltaX) * 5d;
+                _pan += new Vector2(-e.DeltaY, e.DeltaX) * 5d / _scale;
                 return;
             }
             
-            _pan += new Vector2(e.DeltaX, -e.DeltaY) * 5d;
+            _pan += new Vector2(e.DeltaX, -e.DeltaY) * 5d / _scale;
         }
 
         private void ApplyRules()
