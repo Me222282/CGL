@@ -1,0 +1,17 @@
+using System.Collections.Generic;
+using Zene.Structs;
+
+namespace cgl
+{
+    public interface IChunk
+    {
+        public int this[int x, int y] { get; }
+        public bool InUse { get; set; }
+        
+        public void AddCheck(int x, int y);
+        public void ApplyRules(Vector2I location, ChunkManager cm);
+        public bool ShouldDelete();
+        
+        public void PushCell(int x, int y, byte v);
+    }
+}

@@ -172,7 +172,7 @@ namespace cgl
             
             _pan += new Vector2(e.DeltaX, -e.DeltaY) * 5d / _scale;
         }
-
+        
         private void ApplyRules()
         {
             for (int x = 0; x < _size.X; x++)
