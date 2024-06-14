@@ -1,5 +1,6 @@
 ﻿using System;
 using Zene.Graphics;
+using Zene.Graphics.Base.Extensions;
 using Zene.Structs;
 using Zene.Windowing;
 
@@ -21,46 +22,36 @@ namespace cgl
         public Program(int width, int height, string title)
             : base(width, height, title)
         {
-            _size = (width / 2, height / 2);
-            //_size = (1000, 1000);
-            //_size = (20, 20);
-            
-            _map = new GLArray<byte>(_size);
-            _temp = new GLArray<byte>(_size);
-            
-            _checkMap = new GLArray<bool>(_size);
-            _checkTemp = new GLArray<bool>(_size);
+            _cm = new ChunkManager((12, 12));
             
             _texture = new Texture2D(TextureFormat.R8, TextureData.Byte);
-            _texture.SetData<byte>(_size.X, _size.Y, BaseFormat.R, null);
-            _texture.SetData(_size.X, _size.Y, BaseFormat.R, _map);
+            _texture.SetData<byte>(width, height, BaseFormat.R, null);
             _texture.MagFilter = TextureSampling.Nearest;
             _texture.MinFilter = TextureSampling.Nearest;
             _texture.WrapStyle = WrapStyle.EdgeClamp;
             
             _shad = new BoolShader();
+            _text = new TextRenderer();
             
-            // DrawContext.RenderState.Blending = true;
-            // DrawContext.RenderState.SourceScaleBlending = BlendFunction.SourceAlpha;
-            // DrawContext.RenderState.DestinationScaleBlending = BlendFunction.OneMinusSourceAlpha;
+            DrawContext.RenderState.Blending = true;
+            DrawContext.RenderState.SourceScaleBlending = BlendFunction.SourceAlpha;
+            DrawContext.RenderState.DestinationScaleBlending = BlendFunction.OneMinusSourceAlpha;
         }
         
         private BoolShader _shad;
         private Texture2D _texture;
+        private TextRenderer _text;
+        private Vector2 _drawOffset = 0d;
         
-        private GLArray<byte> _map;
-        private GLArray<byte> _temp;
-        
-        private GLArray<bool> _checkMap;
-        private GLArray<bool> _checkTemp;
-        private Vector2I _size;
+        private ChunkManager _cm;
         private bool _applied = false;
         private bool _palying  = false;
         private bool _enter = false;
         
-        private double _scale = 1d;
+        private double _scale = 10d;
         private Vector2 _pan = 0d;
         private Vector2 _mp;
+        private Vector2I _pi;
         
         private bool Division(double t) => Timer % t >= (t / 2d);
         
@@ -71,12 +62,10 @@ namespace cgl
             e.Context.Framebuffer.Clear(BufferBit.Colour);
             e.Context.Shader = _shad;
             
-            e.Context.Projection = Matrix4.CreateOrthographic(Width, Height, 0d, 1d);
-            e.Context.View = Matrix4.CreateTranslation(_pan) * Matrix4.CreateScale(_scale);
-            
             if (_enter)
             {
-                ApplyRules();
+                _cm.ApplyRules();
+                //GenerateTexture();
                 _enter = false;
             }
             
@@ -84,7 +73,8 @@ namespace cgl
             
             if (!_applied && Division(0.1))
             {
-                ApplyRules();
+                _cm.ApplyRules();
+                //GenerateTexture();
                 _applied = true;
             }
             else if (!Division(0.1))
@@ -92,10 +82,23 @@ namespace cgl
                 _applied = false;
             }
             
+            
             Ignore:
-            _texture.EditData(0, 0, _size.X, _size.Y, BaseFormat.R, _map);
-            //_texture.SetData(_size.X, _size.Y, BaseFormat.R, _map);
-            Draw(e.Context, new Box(0d, Size));
+            GenerateTexture();
+            
+            e.Context.View = Matrix.Identity;
+            e.Context.Model = Matrix4.CreateScale(10d);
+            _text.DrawCentred(e.Context, _pi.ToString(), Shapes.SampleFont, 0, 0);
+            
+            e.Context.Projection = Matrix4.CreateOrthographic(Width, Height, 0d, 1d) * Matrix4.CreateScale(0.9);
+            e.Context.View = Matrix4.CreateTranslation(_pan) * Matrix4.CreateScale(_scale);
+            e.Context.Model = Matrix.Identity;
+            e.Context.DrawBox(new Box(0d, 20d), ColourF.Orange);
+            e.Context.View = Matrix4.CreateScale(_scale);
+            Draw(e.Context, new Box(_drawOffset, (_texture.Width, _texture.Height)));
+            e.Context.View = Matrix.Identity;
+            e.Context.Model = Matrix.Identity;
+            e.Context.DrawBorderBox(new Box(0d, Size), ColourF.Zero, 5d, ColourF.Grey);
         }
         
         private void Draw(IDrawingContext dc, IBox bounds)
@@ -111,14 +114,18 @@ namespace cgl
         {
             base.OnMouseDown(e);
             
-            Vector2 pos = ((((_mp / _scale) - _pan) + (Size / 2d)) / Size) * _size;
-            Vector2I pi = (Vector2I)pos;
-            pi.Y = _size.Y - pi.Y - 1;
+            Vector2 size = Size / _scale;
             
-            if (pi.X < 0 || pi.Y < 0 || pi.X >= _size.X || pi.Y >= _size.Y) { return; }
-            _map[pi.X, pi.Y] = (byte)(1 - _map[pi.X, pi.Y]);
-            _checkMap[pi.X, pi.Y] = true;
-            WriteAround(_checkMap, pi.X, pi.Y);
+            Vector2 pos = ((_mp / _scale) - _pan) + (size / 2d);
+            Vector2I pi = (Vector2I)pos;
+            _pi = pi;
+            //pi.Y = (int)size.Y - pi.Y - 1;
+            
+            if (pi.X < 0 || pi.Y < 0 || pi.X >= size.X || pi.Y >= size.Y) { return; }
+            _cm.PushCell(pi, 1);
+            // _map[pi.X, pi.Y] = (byte)(1 - _map[pi.X, pi.Y]);
+            // _checkMap[pi.X, pi.Y] = true;
+            // WriteAround(_checkMap, pi.X, pi.Y);
         }
         protected override void OnMouseMove(MouseEventArgs e)
         {
@@ -138,6 +145,16 @@ namespace cgl
             if (e[Keys.Enter])
             {
                 _enter = true;
+                return;
+            }
+            if (e[Keys.Equal])
+            {
+                _scale *= 1.1;
+                return;
+            }
+            if (e[Keys.Minus])
+            {
+                _scale /= 1.1;
                 return;
             }
         }
@@ -173,89 +190,49 @@ namespace cgl
             _pan += new Vector2(e.DeltaX, -e.DeltaY) * 5d / _scale;
         }
         
-        private void ApplyRules()
+        private GLArray<byte> _data = new GLArray<byte>(12, 12);
+        private void GenerateTexture()
         {
-            for (int x = 0; x < _size.X; x++)
+            Array.Fill<byte>(_data.Data, 1);
+            Vector2 of = _pan / _cm.ChunkSize;
+            Vector2I offset = ((int)Math.Round(of.X), (int)Math.Round(of.Y));
+            
+            _drawOffset = _pan - (offset * _cm.ChunkSize);
+            
+            Vector2 tmp = (Size / _scale) / _cm.ChunkSize;
+            Vector2I chunking = (Vector2I)tmp + 2;//((int)Math.Ceiling(tm.X), (int)Math.Ceiling(tm.Y));
+            Vector2I size = _cm.ChunkSize * chunking;
+            _texture.SetData<byte>(size.X, size.Y, BaseFormat.R, null);
+            
+            for (int x = 0; x < chunking.X; x++)
             {
-                for (int y = 0; y < _size.Y; y++)
+                for (int y = 0; y < chunking.Y; y++)
                 {
-                    //bool c = _checkMap[x, y];
-                    if (!_checkMap[x, y])
-                    {
-                        _temp[x, y] = _map[x, y];
-                        continue;
-                    }
-                    _checkMap[x, y] = false;
+                    Vector2I pos = (x, y);
+                    //_cm.GetChunkRead(pos + offset).WriteToTexture(pos * _cm.ChunkSize, _texture, _cm);
                     
-                    int n = CountNeighbours(x, y);
-                    bool alive = _map[x, y] == 1;
-                    if (n == 3)
-                    {
-                        _temp[x, y] = 1;
-                        //_checkTemp[x, y] = true;
-                        if (!alive)
-                        {
-                            WriteAround(_checkTemp, x, y);
-                        }
-                        continue;
-                    }
-                    if (!alive)
-                    {
-                        _temp[x, y] = 0;
-                        continue;
-                    }
-                    if (n == 2)
-                    {
-                        _temp[x, y] = 1;
-                        //_checkTemp[x, y] = true;
-                        continue;
-                    }
-                    _temp[x, y] = 0;
-                    WriteAround(_checkTemp, x, y);
+                    GLArray<byte> gla = _data;
+                    if ((x + y) % 2 == 1) { gla = null; }
+                    
+                    Vector2I location = pos * _cm.ChunkSize;
+                    _texture.TexSubImage2D(0,
+                        location.X, location.Y, _cm.ChunkSize.X, _cm.ChunkSize.Y,
+                        BaseFormat.R, TextureData.Byte, gla);
+                    
+                    //if ((x + y) % 2 == 1) { continue; }
+                    
+                    Vector2 sertg = chunking / 2d;
+                    DrawContext.View = Matrix.Identity;//Matrix4.CreateScale(_scale);
+                    DrawContext.Model = Matrix4.CreateScale(10d) *
+                        Matrix4.CreateTranslation((_cm.ChunkSize * (-sertg + (x + 0.5, y + 0.5)) + _drawOffset) * _scale);
+                    _text.Colour = ColourF.Blue;
+                    _text.DrawCentred(DrawContext, (pos - offset).ToString(), Shapes.SampleFont, 0, 0);
+                    DrawContext.Shader = Shapes.BasicShader;
+                    Shapes.BasicShader.ColourSource = ColourSource.UniformColour;
+                    Shapes.BasicShader.Colour = ColourF.White;
+                    //DrawContext.Draw(Shapes.Square);
                 }
             }
-            
-            // swap memory
-            GLArray<byte> gla = _map;
-            _map = _temp;
-            _temp = gla;
-            //Array.Clear(_temp.Data, 0, _temp.Length);
-            
-            GLArray<bool> gla2 = _checkMap;
-            _checkMap = _checkTemp;
-            _checkTemp = gla2;
-            //Array.Clear(_checkTemp.Data, 0, _checkTemp.Length);
-        }
-        private int CountNeighbours(int x, int y)
-            => Get(x + 1, y) + Get(x - 1, y) +
-            Get(x + 1, y + 1) + Get(x - 1, y + 1) +
-            Get(x + 1, y - 1) + Get(x - 1, y - 1) +
-            Get(x, y + 1) + Get(x, y - 1);
-        private int Get(int x, int y)
-        {
-            if (x < 0 || y < 0 || x >= _size.X || y >= _size.Y)
-            {
-                return 0;
-            }
-            
-            return _map[x, y];
-        }
-        private static void Write(GLArray<bool> map, int x, int y)
-        {
-            if (x < 0 || y < 0 || x >= map.Width || y >= map.Height) { return; }
-            
-            map[x, y] = true;
-        }
-        private static void WriteAround(GLArray<bool> map, int x, int y)
-        {
-            Write(map, x + 1, y);
-            Write(map, x - 1, y);
-            Write(map, x + 1, y + 1);
-            Write(map, x - 1, y + 1);
-            Write(map, x + 1, y - 1);
-            Write(map, x - 1, y - 1);
-            Write(map, x, y + 1);
-            Write(map, x, y - 1);
         }
     }
 }

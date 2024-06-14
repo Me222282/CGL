@@ -1,12 +1,14 @@
 using Zene.Graphics;
+using Zene.Graphics.Base.Extensions;
 using Zene.Structs;
 
 namespace cgl
 {
     public class Chunk : IChunk
     {
-        public Chunk(Vector2I size)
+        public Chunk(Vector2I size, ChunkManager cm)
         {
+            _cm = cm;
             _size = size;
             _map = new GLArray<byte>(size);
             _temp = new GLArray<byte>(size);
@@ -299,6 +301,13 @@ namespace cgl
             Write(map, x - 1, y - 1);
             Write(map, x, y + 1);
             Write(map, x, y - 1);
+        }
+        
+        public void WriteToTexture(Vector2I location, ITexture texture, ChunkManager cm)
+        {
+            texture.TexSubImage2D(0,
+                location.X, location.Y, cm.ChunkSize.X, cm.ChunkSize.Y,
+                BaseFormat.R, TextureData.Byte, _map);
         }
     }
 }
