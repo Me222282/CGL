@@ -22,20 +22,28 @@ namespace cgl
         {
             foreach (KeyValuePair<Vector2I, IChunk> kvp in Chunks)
             {
-                kvp.Value.ApplyRules(kvp.Key, this);
+                kvp.Value.CalculateRules(kvp.Key, this);
                 if (kvp.Value.ShouldDelete())
                 {
-                    Chunks.TryRemove(kvp);
                     kvp.Value.InUse = false;
+                    Chunks.TryRemove(kvp);
                 }
+            }
+            foreach (KeyValuePair<Vector2I, IChunk> kvp in Chunks)
+            {
+                kvp.Value.ApplyFrame();
             }
         }
         public IChunk AddChunk(Vector2I location)
         {
-            IChunk c = new Chunk(ChunkSize, this);
+            IChunk c = new Chunk(ChunkSize, this, location);
             c.InUse = true;
             
-            Chunks.TryAdd(location, c);
+            bool sess = Chunks.TryAdd(location, c);
+            if (!sess)
+            {
+                throw new Exception();
+            }
             return c;
         }
         public IChunk GetChunkRead(Vector2I location)

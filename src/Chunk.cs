@@ -6,9 +6,10 @@ namespace cgl
 {
     public class Chunk : IChunk
     {
-        public Chunk(Vector2I size, ChunkManager cm)
+        public Chunk(Vector2I size, ChunkManager cm, Vector2I location)
         {
             _cm = cm;
+            _location = location;
             _size = size;
             _map = new GLArray<byte>(size);
             _temp = new GLArray<byte>(size);
@@ -38,7 +39,7 @@ namespace cgl
         private int _useCount = 0;
         public void AddCheck(int x, int y)
         {
-            _checkMap[x, y] = true;
+            _checkTemp[x, y] = true;
             _useCount++;
         }
         public bool ShouldDelete() => _useCount == 0;
@@ -60,7 +61,7 @@ namespace cgl
         private IChunk _br;
         private ChunkManager _cm;
         internal Vector2I _location;
-        public void ApplyRules(Vector2I location, ChunkManager cm)
+        public void CalculateRules(Vector2I location, ChunkManager cm)
         {
             _useCount = 0;
             _cm = cm;
@@ -110,7 +111,9 @@ namespace cgl
                     WriteAround(_checkTemp, x, y);
                 }
             }
-            
+        }
+        public void ApplyFrame()
+        {
             // swap memory
             GLArray<byte> gla = _map;
             _map = _temp;
@@ -260,7 +263,7 @@ namespace cgl
                 
                 if (_bottom == null || _bottom is Empty || !_bottom.InUse)
                 {
-                    _bottom = _cm.GetChunkWrite(_location - (0, 1));
+                    _bottom = _cm.GetChunkWrite(_location + (0, 1));
                 }
                 _bottom.AddCheck(x, _size.Y - 1);
                 return;

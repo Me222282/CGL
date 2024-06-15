@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Zene.Graphics;
 using Zene.Graphics.Base.Extensions;
 using Zene.Structs;
@@ -259,6 +260,11 @@ namespace cgl
                 _drawOffset.Y += _cm.ChunkSize.Y / 2d;
             }
             
+            if ((chunking.X * chunking.Y) >= (_cm.Chunks.Count * 2))
+            {
+                goto IterateArray;
+            }
+            
             for (int x = 0; x < chunking.X; x++)
             {
                 for (int y = 0; y < chunking.Y; y++)
@@ -281,6 +287,29 @@ namespace cgl
                     DrawContext.DrawBorderBox(new Box(0d, _cm.ChunkSize * _scale), ColourF.Zero, 2, ColourF.LightGrey);
                     //DrawContext.Draw(Shapes.Square);
                 }
+            }
+            return;
+            
+            IterateArray:
+            foreach (KeyValuePair<Vector2I, IChunk> kvp in _cm.Chunks)
+            {
+                Vector2I pos = kvp.Key + offset;
+                // Ignore outsiders
+                if (pos.X < 0 || pos.Y < 0 || pos.X >= chunking.X || pos.Y >= chunking.Y) { continue; }
+                kvp.Value.WriteToTexture(pos * _cm.ChunkSize, _texture, _cm);
+                
+                Vector2 sertg = chunking / 2d;
+                DrawContext.View = Matrix4.CreateTranslation((_cm.ChunkSize * (-sertg + pos + (0.5, 0.5)) + _drawOffset) * _scale);
+                    //Matrix4.CreateScale(_scale);
+                DrawContext.Model = Matrix4.CreateScale(10d);
+                _text.Colour = ColourF.Blue;
+                _text.DrawCentred(DrawContext, (pos - offset).ToString(), Shapes.SampleFont, 0, 0);
+                // DrawContext.Shader = Shapes.BasicShader;
+                // Shapes.BasicShader.ColourSource = ColourSource.UniformColour;
+                // Shapes.BasicShader.Colour = ColourF.White;
+                DrawContext.Model = Matrix.Identity;
+                DrawContext.DrawBorderBox(new Box(0d, _cm.ChunkSize * _scale), ColourF.Zero, 2, ColourF.LightGrey);
+                //DrawContext.Draw(Shapes.Square);
             }
         }
     }

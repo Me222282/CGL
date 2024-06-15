@@ -10,7 +10,8 @@ namespace cgl
         public bool InUse { get; set; }
         
         public void AddCheck(int x, int y);
-        public void ApplyRules(Vector2I location, ChunkManager cm);
+        public void CalculateRules(Vector2I location, ChunkManager cm);
+        public void ApplyFrame();
         public bool ShouldDelete();
         
         public void PushCell(int x, int y, byte v);
