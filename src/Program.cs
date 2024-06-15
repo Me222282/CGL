@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using Zene.Graphics;
-using Zene.Graphics.Base.Extensions;
 using Zene.Structs;
 using Zene.Windowing;
 
@@ -58,6 +57,8 @@ namespace cgl
         private Vector2 _mp;
         private Vector2I _pi;
         private bool _mouseDown = false;
+        private bool _mousePan = false;
+        private Vector2 _panStart;
         
         private bool Division(double t) => Timer % t >= (t / 2d);
         
@@ -94,6 +95,11 @@ namespace cgl
                 _cm.ApplyRules();
                 //GenerateTexture();
                 _enter = false;
+            }
+            if (_mousePan)
+            {
+                _pan += (_mp - _panStart) / _scale;
+                _panStart = _mp;
             }
             
             if (!_palying) { goto Ignore; }
@@ -146,6 +152,12 @@ namespace cgl
                 _mouseDown = true;
                 return;
             }
+            if (e.Button == MouseButton.Middle)
+            {
+                _mousePan = true;
+                _panStart = _mp;
+                return;
+            }
             
             // Vector2 size = Size / _scale;
             
@@ -169,6 +181,11 @@ namespace cgl
             if (e.Button == MouseButton.Left)
             {
                 _mouseDown = false;
+                return;
+            }
+            if (e.Button == MouseButton.Middle)
+            {
+                _mousePan = false;
                 return;
             }
         }
@@ -260,7 +277,7 @@ namespace cgl
                 _drawOffset.Y += _cm.ChunkSize.Y / 2d;
             }
             
-            if ((chunking.X * chunking.Y) >= (_cm.Chunks.Count * 2))
+            if ((chunking.X * chunking.Y) >= (_cm.NumChunks * 2))
             {
                 goto IterateArray;
             }
@@ -273,6 +290,7 @@ namespace cgl
                     IChunk ic = _cm.GetChunkRead(pos - offset);
                     if (ic is Empty) { continue; }
                     ic.WriteToTexture(pos * _cm.ChunkSize, _texture, _cm);
+                    continue;
                     
                     Vector2 sertg = chunking / 2d;
                     DrawContext.View = Matrix4.CreateTranslation((_cm.ChunkSize * (-sertg + (x + 0.5, y + 0.5)) + _drawOffset) * _scale);
@@ -291,12 +309,13 @@ namespace cgl
             return;
             
             IterateArray:
-            foreach (KeyValuePair<Vector2I, IChunk> kvp in _cm.Chunks)
+            _cm.Iterate((k, c) =>
             {
-                Vector2I pos = kvp.Key + offset;
+                Vector2I pos = c.Location + offset;
                 // Ignore outsiders
-                if (pos.X < 0 || pos.Y < 0 || pos.X >= chunking.X || pos.Y >= chunking.Y) { continue; }
-                kvp.Value.WriteToTexture(pos * _cm.ChunkSize, _texture, _cm);
+                if (pos.X < 0 || pos.Y < 0 || pos.X >= chunking.X || pos.Y >= chunking.Y) { return; }
+                c.WriteToTexture(pos * _cm.ChunkSize, _texture, _cm);
+                return;
                 
                 Vector2 sertg = chunking / 2d;
                 DrawContext.View = Matrix4.CreateTranslation((_cm.ChunkSize * (-sertg + pos + (0.5, 0.5)) + _drawOffset) * _scale);
@@ -310,7 +329,7 @@ namespace cgl
                 DrawContext.Model = Matrix.Identity;
                 DrawContext.DrawBorderBox(new Box(0d, _cm.ChunkSize * _scale), ColourF.Zero, 2, ColourF.LightGrey);
                 //DrawContext.Draw(Shapes.Square);
-            }
+            });
         }
     }
 }

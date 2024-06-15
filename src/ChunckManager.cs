@@ -8,38 +8,79 @@ namespace cgl
 {
     public class ChunkManager
     {
+        private class CK
+        {
+            public CK(IChunk ck, bool parse)
+            {
+                c = ck;
+                it = parse;
+            }
+            
+            public IChunk c;
+            public bool it;
+            public int delC;
+            public void Done() => it = false;
+        }
+        
         public ChunkManager(Vector2I size)
         {
             ChunkSize = size;
-            Chunks = new ConcurrentDictionary<Vector2I, IChunk>();
+            _chunks = new ConcurrentDictionary<Vector2I, CK>();
+            //Chunks = new ChunkTable();
         }
         
         public Vector2I ChunkSize { get; }
+        public int NumChunks => _chunks.Count;
         
-        public ConcurrentDictionary<Vector2I, IChunk> Chunks { get; }
+        private ConcurrentDictionary<Vector2I, CK> _chunks;
+        //public ChunkTable Chunks { get; }
         
+        private bool _inIteration = false;
         public void ApplyRules()
         {
-            foreach (KeyValuePair<Vector2I, IChunk> kvp in Chunks)
+            _inIteration = true;
+            foreach (KeyValuePair<Vector2I, CK> kvp in _chunks)
             {
-                kvp.Value.CalculateRules(kvp.Key, this);
-                if (kvp.Value.ShouldDelete())
+                if (kvp.Value.it) { continue; }
+                IChunk c = kvp.Value.c;
+                c.CalculateRules(this);
+                if (c.ShouldDelete())
                 {
-                    kvp.Value.InUse = false;
-                    Chunks.TryRemove(kvp);
+                    kvp.Value.delC++;
+                    if (kvp.Value.delC <= 3) { continue; }
+                    c.InUse = false;
+                    _chunks.TryRemove(kvp);
+                    continue;
                 }
+                kvp.Value.delC = 0;
             }
-            foreach (KeyValuePair<Vector2I, IChunk> kvp in Chunks)
+            _inIteration = false;
+            foreach (KeyValuePair<Vector2I, CK> kvp in _chunks)
             {
-                kvp.Value.ApplyFrame();
+                kvp.Value.Done();
+                kvp.Value.c.ApplyFrame();
             }
+            // Chunks.Iterate(c =>
+            // {
+            //     c.CalculateRules(this);
+            //     if (c.ShouldDelete())
+            //     {
+            //         c.InUse = false;
+            //         Chunks.Remove(c.Location);
+            //     }
+            // });
+            // Chunks.Iterate(c =>
+            // {
+            //     c.ApplyFrame();
+            // });
         }
         public IChunk AddChunk(Vector2I location)
         {
             IChunk c = new Chunk(ChunkSize, this, location);
             c.InUse = true;
+            //c.Location = location;
             
-            bool sess = Chunks.TryAdd(location, c);
+            bool sess = _chunks.TryAdd(location, new CK(c, _inIteration));
             if (!sess)
             {
                 throw new Exception();
@@ -48,18 +89,18 @@ namespace cgl
         }
         public IChunk GetChunkRead(Vector2I location)
         {
-            bool found = Chunks.TryGetValue(location, out IChunk c);
+            bool found = _chunks.TryGetValue(location, out CK c);
             if (found)
             {
-                return c;
+                return c.c;
             }
             
             return new Empty();
         }
         public IChunk GetChunkWrite(Vector2I location)
         {
-            bool found = Chunks.TryGetValue(location, out IChunk c);
-            if (found) { return c; }
+            bool found = _chunks.TryGetValue(location, out CK c);
+            if (found) { return c.c; }
             
             return AddChunk(location);
         }
@@ -82,6 +123,13 @@ namespace cgl
             
             IChunk c = GetChunkWrite(ch);
             c.PushCell(pos.X, ChunkSize.Y - pos.Y - 1, v);
+        }
+        public void Iterate(Action<Vector2I, IChunk> action)
+        {
+            foreach (KeyValuePair<Vector2I, CK> kvp in _chunks)
+            {
+                action(kvp.Key, kvp.Value.c);
+            }
         }
     }
 }

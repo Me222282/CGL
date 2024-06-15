@@ -8,9 +8,10 @@ namespace cgl
     {
         public int this[int x, int y] { get; }
         public bool InUse { get; set; }
+        public Vector2I Location { get;  set; }
         
         public void AddCheck(int x, int y);
-        public void CalculateRules(Vector2I location, ChunkManager cm);
+        public void CalculateRules(ChunkManager cm);
         public void ApplyFrame();
         public bool ShouldDelete();
         

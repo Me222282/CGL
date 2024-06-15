@@ -9,7 +9,7 @@ namespace cgl
         public Chunk(Vector2I size, ChunkManager cm, Vector2I location)
         {
             _cm = cm;
-            _location = location;
+            Location = location;
             _size = size;
             _map = new GLArray<byte>(size);
             _temp = new GLArray<byte>(size);
@@ -60,12 +60,11 @@ namespace cgl
         private IChunk _bl;
         private IChunk _br;
         private ChunkManager _cm;
-        internal Vector2I _location;
-        public void CalculateRules(Vector2I location, ChunkManager cm)
+        public Vector2I Location { get; set; }
+        public void CalculateRules(ChunkManager cm)
         {
             _useCount = 0;
             _cm = cm;
-            _location = location;
             
             for (int x = 0; x < _size.X; x++)
             {
@@ -147,7 +146,7 @@ namespace cgl
                 {
                     if (_bl == null || !_bl.InUse)
                     {
-                        _bl = _cm.GetChunkRead(_location + (-1, 1));
+                        _bl = _cm.GetChunkRead(Location + (-1, 1));
                     }
                     return _bl[_size.X - 1, _size.Y - 1];
                 }
@@ -155,14 +154,14 @@ namespace cgl
                 {
                     if (_tl == null || !_tl.InUse)
                     {
-                        _tl = _cm.GetChunkRead(_location - Vector2I.One);
+                        _tl = _cm.GetChunkRead(Location - Vector2I.One);
                     }
                     return _tl[_size.X - 1, 0];
                 }
                 
                 if (_left == null || !_left.InUse)
                 {
-                    _left = _cm.GetChunkRead(_location - (1, 0));
+                    _left = _cm.GetChunkRead(Location - (1, 0));
                 }
                 return _left[_size.X - 1, y];
             }
@@ -172,14 +171,14 @@ namespace cgl
                 {
                     if (_br == null || !_br.InUse)
                     {
-                        _br = _cm.GetChunkRead(_location + Vector2I.One);
+                        _br = _cm.GetChunkRead(Location + Vector2I.One);
                     }
                     return _br[0, _size.Y - 1];
                 }
                 
                 if (_bottom == null || !_bottom.InUse)
                 {
-                    _bottom = _cm.GetChunkRead(_location + (0, 1));
+                    _bottom = _cm.GetChunkRead(Location + (0, 1));
                 }
                 return _bottom[x, _size.Y - 1];
             }
@@ -189,14 +188,14 @@ namespace cgl
                 {
                     if (_tr == null || !_tr.InUse)
                     {
-                        _tr = _cm.GetChunkRead(_location + (1, -1));
+                        _tr = _cm.GetChunkRead(Location + (1, -1));
                     }
                     return _tr[0, 0];
                 }
                 
                 if (_right == null || !_right.InUse)
                 {
-                    _right = _cm.GetChunkRead(_location + (1, 0));
+                    _right = _cm.GetChunkRead(Location + (1, 0));
                 }
                 return _right[0, y];
             }
@@ -204,7 +203,7 @@ namespace cgl
             // gy
             if (_top == null || !_top.InUse)
             {
-                _top = _cm.GetChunkRead(_location - (0, 1));
+                _top = _cm.GetChunkRead(Location - (0, 1));
             }
             return _top[x, 0];
         }
@@ -227,7 +226,7 @@ namespace cgl
                 {
                     if (_bl == null || _bl is Empty || !_bl.InUse)
                     {
-                        _bl = _cm.GetChunkWrite(_location + (-1, 1));
+                        _bl = _cm.GetChunkWrite(Location + (-1, 1));
                     }
                     _bl.AddCheck(_size.X - 1, _size.Y - 1);
                     return;
@@ -236,7 +235,7 @@ namespace cgl
                 {
                     if (_tl == null || _tl is Empty || !_tl.InUse)
                     {
-                        _tl = _cm.GetChunkWrite(_location - Vector2I.One);
+                        _tl = _cm.GetChunkWrite(Location - Vector2I.One);
                     }
                     _tl.AddCheck(_size.X - 1, 0);
                     return;
@@ -244,7 +243,7 @@ namespace cgl
                 
                 if (_left == null || _left is Empty || !_left.InUse)
                 {
-                    _left = _cm.GetChunkWrite(_location - (1, 0));
+                    _left = _cm.GetChunkWrite(Location - (1, 0));
                 }
                 _left.AddCheck(_size.X - 1, y);
                 return;
@@ -255,7 +254,7 @@ namespace cgl
                 {
                     if (_br == null || _br is Empty || !_br.InUse)
                     {
-                        _br = _cm.GetChunkWrite(_location + Vector2I.One);
+                        _br = _cm.GetChunkWrite(Location + Vector2I.One);
                     }
                     _br.AddCheck(0, _size.Y - 1);
                     return;
@@ -263,7 +262,7 @@ namespace cgl
                 
                 if (_bottom == null || _bottom is Empty || !_bottom.InUse)
                 {
-                    _bottom = _cm.GetChunkWrite(_location + (0, 1));
+                    _bottom = _cm.GetChunkWrite(Location + (0, 1));
                 }
                 _bottom.AddCheck(x, _size.Y - 1);
                 return;
@@ -274,7 +273,7 @@ namespace cgl
                 {
                     if (_tr == null || _tr is Empty || !_tr.InUse)
                     {
-                        _tr = _cm.GetChunkWrite(_location + (1, -1));
+                        _tr = _cm.GetChunkWrite(Location + (1, -1));
                     }
                     _tr.AddCheck(0, 0);
                     return;
@@ -282,7 +281,7 @@ namespace cgl
                 
                 if (_right == null || _right is Empty || !_right.InUse)
                 {
-                    _right = _cm.GetChunkWrite(_location + (1, 0));
+                    _right = _cm.GetChunkWrite(Location + (1, 0));
                 }
                 _right.AddCheck(0, y);
                 return;
@@ -291,7 +290,7 @@ namespace cgl
             // gy
             if (_top == null || _top is Empty || !_top.InUse)
             {
-                _top = _cm.GetChunkWrite(_location - (0, 1));
+                _top = _cm.GetChunkWrite(Location - (0, 1));
             }
             _top.AddCheck(x, 0);
             return;
