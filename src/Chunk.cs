@@ -1,3 +1,4 @@
+using System;
 using Zene.Graphics;
 using Zene.Graphics.Base.Extensions;
 using Zene.Structs;
@@ -140,72 +141,60 @@ namespace cgl
             {
                 return _map[x, y];
             }
-            if (lx)
+            
+            Vector2I offset = Vector2I.Zero;
+            if (lx)         { offset.X -= 1; }
+            else if (gx)    { offset.X += 1; }
+            if (ly)         { offset.Y += 1; }
+            else if (gy)    { offset.Y -= 1; }
+            
+            int cpx = 0;
+            int cpy = 0;
+            ref IChunk ch = ref _left;
+            switch (offset.X, offset.Y)
             {
-                if (ly)
-                {
-                    if (_bl == null || !_bl.InUse)
-                    {
-                        _bl = _cm.GetChunkRead(Location + (-1, 1));
-                    }
-                    return _bl[_size.X - 1, _size.Y - 1];
-                }
-                if (gy)
-                {
-                    if (_tl == null || !_tl.InUse)
-                    {
-                        _tl = _cm.GetChunkRead(Location - Vector2I.One);
-                    }
-                    return _tl[_size.X - 1, 0];
-                }
-                
-                if (_left == null || !_left.InUse)
-                {
-                    _left = _cm.GetChunkRead(Location - (1, 0));
-                }
-                return _left[_size.X - 1, y];
-            }
-            if (ly)
-            {
-                if (gx)
-                {
-                    if (_br == null || !_br.InUse)
-                    {
-                        _br = _cm.GetChunkRead(Location + Vector2I.One);
-                    }
-                    return _br[0, _size.Y - 1];
-                }
-                
-                if (_bottom == null || !_bottom.InUse)
-                {
-                    _bottom = _cm.GetChunkRead(Location + (0, 1));
-                }
-                return _bottom[x, _size.Y - 1];
-            }
-            if (gx)
-            {
-                if (gy)
-                {
-                    if (_tr == null || !_tr.InUse)
-                    {
-                        _tr = _cm.GetChunkRead(Location + (1, -1));
-                    }
-                    return _tr[0, 0];
-                }
-                
-                if (_right == null || !_right.InUse)
-                {
-                    _right = _cm.GetChunkRead(Location + (1, 0));
-                }
-                return _right[0, y];
+                case (-1, 0):
+                    cpx = _size.X - 1;
+                    cpy = y;
+                    ch = ref _left;
+                    break;
+                case (1, 0):
+                    cpy = y;
+                    ch = ref _right;
+                    break;
+                case (0, 1):
+                    cpx = x;
+                    cpy = _size.Y - 1;
+                    ch = ref _top;
+                    break;
+                case (0, -1):
+                    cpx = x;
+                    ch = ref _bottom;
+                    break;
+                case (-1, 1):
+                    cpx = _size.X - 1;
+                    cpy = _size.Y - 1;
+                    ch = ref _tl;
+                    break;
+                case (1, 1):
+                    cpy = _size.Y - 1;
+                    ch = ref _tr;
+                    break;
+                case (-1, -1):
+                    cpx = _size.X - 1;
+                    cpy = 0;
+                    ch = ref _bl;
+                    break;
+                case (1, -1):
+                    ch = ref _br;
+                    break;
             }
             
-            // gy
-            if (_top == null || !_top.InUse)
+            if (ch == null || !ch.InUse)
             {
-                _top = _cm.GetChunkRead(Location - (0, 1));
+                ch = _cm.GetChunkRead(Location + offset);
             }
-            return _top[x, 0];
+            return ch[cpx, cpy];
         }
         private void Write(GLArray<bool> map, int x, int y)
         {
@@ -220,80 +209,59 @@ namespace cgl
                 return;
             }
             
-            if (lx)
+            Vector2I offset = Vector2I.Zero;
+            if (lx)         { offset.X -= 1; }
+            else if (gx)    { offset.X += 1; }
+            if (ly)         { offset.Y += 1; }
+            else if (gy)    { offset.Y -= 1; }
+            
+            int cpx = 0;
+            int cpy = 0;
+            ref IChunk ch = ref _left;
+            switch (offset.X, offset.Y)
             {
-                if (ly)
-                {
-                    if (_bl == null || _bl is Empty || !_bl.InUse)
-                    {
-                        _bl = _cm.GetChunkWrite(Location + (-1, 1));
-                    }
-                    _bl.AddCheck(_size.X - 1, _size.Y - 1);
-                    return;
-                }
-                if (gy)
-                {
-                    if (_tl == null || _tl is Empty || !_tl.InUse)
-                    {
-                        _tl = _cm.GetChunkWrite(Location - Vector2I.One);
-                    }
-                    _tl.AddCheck(_size.X - 1, 0);
-                    return;
-                }
-                
-                if (_left == null || _left is Empty || !_left.InUse)
-                {
-                    _left = _cm.GetChunkWrite(Location - (1, 0));
-                }
-                _left.AddCheck(_size.X - 1, y);
-                return;
-            }
-            if (ly)
-            {
-                if (gx)
-                {
-                    if (_br == null || _br is Empty || !_br.InUse)
-                    {
-                        _br = _cm.GetChunkWrite(Location + Vector2I.One);
-                    }
-                    _br.AddCheck(0, _size.Y - 1);
-                    return;
-                }
-                
-                if (_bottom == null || _bottom is Empty || !_bottom.InUse)
-                {
-                    _bottom = _cm.GetChunkWrite(Location + (0, 1));
-                }
-                _bottom.AddCheck(x, _size.Y - 1);
-                return;
-            }
-            if (gx)
-            {
-                if (gy)
-                {
-                    if (_tr == null || _tr is Empty || !_tr.InUse)
-                    {
-                        _tr = _cm.GetChunkWrite(Location + (1, -1));
-                    }
-                    _tr.AddCheck(0, 0);
-                    return;
-                }
-                
-                if (_right == null || _right is Empty || !_right.InUse)
-                {
-                    _right = _cm.GetChunkWrite(Location + (1, 0));
-                }
-                _right.AddCheck(0, y);
-                return;
+                case (-1, 0):
+                    cpx = _size.X - 1;
+                    cpy = y;
+                    ch = ref _left;
+                    break;
+                case (1, 0):
+                    cpy = y;
+                    ch = ref _right;
+                    break;
+                case (0, 1):
+                    cpx = x;
+                    cpy = _size.Y - 1;
+                    ch = ref _top;
+                    break;
+                case (0, -1):
+                    cpx = x;
+                    ch = ref _bottom;
+                    break;
+                case (-1, 1):
+                    cpx = _size.X - 1;
+                    cpy = _size.Y - 1;
+                    ch = ref _tl;
+                    break;
+                case (1, 1):
+                    cpy = _size.Y - 1;
+                    ch = ref _tr;
+                    break;
+                case (-1, -1):
+                    cpx = _size.X - 1;
+                    cpy = 0;
+                    ch = ref _bl;
+                    break;
+                case (1, -1):
+                    ch = ref _br;
+                    break;
             }
             
-            // gy
-            if (_top == null || _top is Empty || !_top.InUse)
+            if (ch == null || ch is Empty || !ch.InUse)
             {
-                _top = _cm.GetChunkWrite(Location - (0, 1));
+                ch = _cm.GetChunkWrite(Location + offset);
             }
-            _top.AddCheck(x, 0);
-            return;
+            ch.AddCheck(cpx, cpy);
         }
         private void WriteAround(GLArray<bool> map, int x, int y)
         {
