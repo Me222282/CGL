@@ -15,13 +15,8 @@ namespace cgl
         public void CalculateRules(ChunkManager cm) { }
         public void ApplyFrame() { }
         public void PushCell(int x, int y, byte v) { }
-
+        
         public bool ShouldDelete() => true;
-        public void WriteToTexture(Vector2I location, ITexture texture, ChunkManager cm)
-        {
-            texture.TexSubImage2D(0,
-                location.X, location.Y, cm.ChunkSize.X, cm.ChunkSize.Y,
-                BaseFormat.R, TextureData.Byte, IntPtr.Zero);
-        }
+        public void WriteToTexture(Vector2I location, ITexture texture, ChunkManager cm) { }
     }
 }

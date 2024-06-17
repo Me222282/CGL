@@ -17,6 +17,8 @@ namespace cgl
             
             _checkMap = new GLArray<bool>(size);
             _checkTemp = new GLArray<bool>(size);
+            
+            _data = new GLArray<Colour>(size);
         }
         
         private GLArray<byte> _map;
@@ -40,8 +42,13 @@ namespace cgl
         private int _useCount = 0;
         public void AddCheck(int x, int y)
         {
-            _checkTemp[x, y] = true;
             _useCount++;
+            if (_cm.ApplingRules)
+            {
+                _checkTemp[x, y] = true;
+                return;
+            }
+            _checkMap[x, y] = true;
         }
         public bool ShouldDelete() => _useCount == 0;
         public void PushCell(int x, int y, byte v)
@@ -148,47 +155,7 @@ namespace cgl
             if (ly)         { offset.Y += 1; }
             else if (gy)    { offset.Y -= 1; }
             
-            int cpx = 0;
-            int cpy = 0;
-            ref IChunk ch = ref _left;
-            switch (offset.X, offset.Y)
-            {
-                case (-1, 0):
-                    cpx = _size.X - 1;
-                    cpy = y;
-                    ch = ref _left;
-                    break;
-                case (1, 0):
-                    cpy = y;
-                    ch = ref _right;
-                    break;
-                case (0, 1):
-                    cpx = x;
-                    cpy = _size.Y - 1;
-                    ch = ref _top;
-                    break;
-                case (0, -1):
-                    cpx = x;
-                    ch = ref _bottom;
-                    break;
-                case (-1, 1):
-                    cpx = _size.X - 1;
-                    cpy = _size.Y - 1;
-                    ch = ref _tl;
-                    break;
-                case (1, 1):
-                    cpy = _size.Y - 1;
-                    ch = ref _tr;
-                    break;
-                case (-1, -1):
-                    cpx = _size.X - 1;
-                    cpy = 0;
-                    ch = ref _bl;
-                    break;
-                case (1, -1):
-                    ch = ref _br;
-                    break;
-            }
+            ref IChunk ch = ref GetChunk(offset, x, y, out int cpx, out int cpy);
             
             if (ch == null || !ch.InUse)
             {
@@ -215,53 +182,51 @@ namespace cgl
             if (ly)         { offset.Y += 1; }
             else if (gy)    { offset.Y -= 1; }
             
-            int cpx = 0;
-            int cpy = 0;
-            ref IChunk ch = ref _left;
-            switch (offset.X, offset.Y)
-            {
-                case (-1, 0):
-                    cpx = _size.X - 1;
-                    cpy = y;
-                    ch = ref _left;
-                    break;
-                case (1, 0):
-                    cpy = y;
-                    ch = ref _right;
-                    break;
-                case (0, 1):
-                    cpx = x;
-                    cpy = _size.Y - 1;
-                    ch = ref _top;
-                    break;
-                case (0, -1):
-                    cpx = x;
-                    ch = ref _bottom;
-                    break;
-                case (-1, 1):
-                    cpx = _size.X - 1;
-                    cpy = _size.Y - 1;
-                    ch = ref _tl;
-                    break;
-                case (1, 1):
-                    cpy = _size.Y - 1;
-                    ch = ref _tr;
-                    break;
-                case (-1, -1):
-                    cpx = _size.X - 1;
-                    cpy = 0;
-                    ch = ref _bl;
-                    break;
-                case (1, -1):
-                    ch = ref _br;
-                    break;
-            }
+            ref IChunk ch = ref GetChunk(offset, x, y, out int cpx, out int cpy);
             
             if (ch == null || ch is Empty || !ch.InUse)
             {
                 ch = _cm.GetChunkWrite(Location + offset);
             }
             ch.AddCheck(cpx, cpy);
+        }
+        private ref IChunk GetChunk(Vector2I offset, int x, int y, out int cpx, out int cpy)
+        {
+            cpx = 0;
+            cpy = 0;
+            ref IChunk ch = ref _left;
+            switch (offset.X, offset.Y)
+            {
+                case (-1, 0):
+                    cpx = _size.X - 1;
+                    cpy = y;
+                    return ref _left;
+                case (1, 0):
+                    cpy = y;
+                    return ref _right;
+                case (0, 1):
+                    cpx = x;
+                    cpy = _size.Y - 1;
+                    return ref _top;
+                case (0, -1):
+                    cpx = x;
+                    return ref _bottom;
+                case (-1, 1):
+                    cpx = _size.X - 1;
+                    cpy = _size.Y - 1;
+                    return ref _tl;
+                case (1, 1):
+                    cpy = _size.Y - 1;
+                    return ref _tr;
+                case (-1, -1):
+                    cpx = _size.X - 1;
+                    cpy = 0;
+                    return ref _bl;
+                case (1, -1):
+                    return ref _br;
+            }
+            
+            throw new Exception();
         }
         private void WriteAround(GLArray<bool> map, int x, int y)
         {
@@ -280,6 +245,22 @@ namespace cgl
             texture.TexSubImage2D(0,
                 location.X, location.Y, cm.ChunkSize.X, cm.ChunkSize.Y,
                 BaseFormat.R, TextureData.Byte, _map);
+        }
+        private GLArray<Colour> _data;
+        public void WriteCheck(Vector2I location, ITexture texture, ChunkManager cm)
+        {
+            Colour c = new Colour(234, 104, 24, 108);
+            for (int x = 0; x < _size.X; x++)
+            {
+                for (int y = 0; y < _size.Y; y++)
+                {
+                    _data[x, y] = _checkMap[x, y] ? c : Colour.Zero;
+                }
+            }
+            
+            texture.TexSubImage2D(0,
+                location.X, location.Y, cm.ChunkSize.X, cm.ChunkSize.Y,
+                BaseFormat.Rgba, TextureData.Byte, _data);
         }
     }
 }

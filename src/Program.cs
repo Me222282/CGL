@@ -29,8 +29,16 @@ namespace cgl
             _texture.MinFilter = TextureSampling.Nearest;
             _texture.WrapStyle = WrapStyle.EdgeClamp;
             
+            _texture2 = new Texture2D(TextureFormat.Rgba8, TextureData.Byte);
+            _texture2.SetData<byte>(width, height, BaseFormat.Rgba, null);
+            _texture2.MagFilter = TextureSampling.Nearest;
+            _texture2.MinFilter = TextureSampling.Nearest;
+            _texture2.WrapStyle = WrapStyle.EdgeClamp;
+            
             _clear = new Framebuffer();
             _clear[0] = _texture;
+            _clear[1] = _texture2;
+            _clear.DrawBuffers = new FrameDrawTarget[] { FrameDrawTarget.Colour0, FrameDrawTarget.Colour1 };
             
             _shad = new BoolShader();
             _text = new TextRenderer();
@@ -42,6 +50,7 @@ namespace cgl
         
         private BoolShader _shad;
         private Texture2D _texture;
+        private Texture2D _texture2;
         private Framebuffer _clear;
         private TextRenderer _text;
         private Vector2 _drawOffset = 0d;
@@ -126,6 +135,8 @@ namespace cgl
             // e.Context.View = Matrix4.CreateTranslation(_pan) * Matrix4.CreateScale(_scale);
             e.Context.View = Matrix4.CreateScale(_scale);
             Draw(e.Context, new Box(_drawOffset, (_texture.Width, _texture.Height)));
+            e.Context.Model = Matrix.Identity;
+            e.Context.DrawBox(new Box(_drawOffset, (_texture.Width, _texture.Height)), _texture2);
         }
         
         private void Draw(IDrawingContext dc, IBox bounds)
@@ -226,6 +237,11 @@ namespace cgl
                 _chunkNumbers = !_chunkNumbers;
                 return;
             }
+            if (e[Keys.C])
+            {
+                _cm.Clear();
+                return;
+            }
         }
         protected override void OnScroll(ScrollEventArgs e)
         {
@@ -268,6 +284,7 @@ namespace cgl
             if (_texture.Width != size.X || _texture.Height != size.Y)
             {
                 _texture.SetData<byte>(size.X, size.Y, BaseFormat.R, null);
+                _texture2.SetData<byte>(size.X, size.Y, BaseFormat.Rgba, null);
             }
             _clear.Clear(BufferBit.Colour);
             
@@ -303,6 +320,10 @@ namespace cgl
         private void DrawChunk(IChunk c, Vector2I pos, Vector2I chunking)
         {
             c.WriteToTexture(pos * _cm.ChunkSize, _texture, _cm);
+            if (c is Chunk ku)
+            {
+                ku.WriteCheck(pos * _cm.ChunkSize, _texture2, _cm);
+            }
             if (!_seeChunks) { return; }
             
             Vector2 sertg = chunking / 2d;

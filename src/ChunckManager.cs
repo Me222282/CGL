@@ -31,6 +31,7 @@ namespace cgl
         
         public Vector2I ChunkSize { get; }
         public int NumChunks => _chunks.Count;
+        public bool ApplingRules => _inIteration;
         
         private ConcurrentDictionary<Vector2I, CK> _chunks;
         //public ChunkTable Chunks { get; }
@@ -131,5 +132,6 @@ namespace cgl
                 action(kvp.Key, kvp.Value.c);
             }
         }
+        public void Clear() => _chunks.Clear();
     }
 }
