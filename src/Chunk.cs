@@ -71,7 +71,6 @@ namespace cgl
         public Vector2I Location { get; set; }
         public void CalculateRules(ChunkManager cm)
         {
-            _useCount = 0;
             _cm = cm;
             
             for (int x = 0; x < _size.X; x++)
@@ -121,6 +120,8 @@ namespace cgl
         }
         public void ApplyFrame()
         {
+            _useCount = 0;
+            
             // swap memory
             GLArray<byte> gla = _map;
             _map = _temp;
@@ -220,7 +221,6 @@ namespace cgl
                     return ref _tr;
                 case (-1, -1):
                     cpx = _size.X - 1;
-                    cpy = 0;
                     return ref _bl;
                 case (1, -1):
                     return ref _br;

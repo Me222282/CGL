@@ -60,7 +60,7 @@ namespace cgl
         private bool _palying  = false;
         private bool _enter = false;
         
-        private double _scale = 10d;
+        private double _scale = 5d;
         private Vector2 _pan = 0d;
         private Vector2 _mp;
         private Vector2I _pi;
@@ -69,6 +69,12 @@ namespace cgl
         private Vector2 _panStart;
         private bool _seeChunks = false;
         private bool _chunkNumbers = false;
+        
+        private GLArray<byte> _old;
+        private GLArray<byte> _fail;
+        private bool _testing = false;
+        
+        private int _i = 0;
         
         private bool Division(double t) => Timer % t >= (t / 2d);
         
@@ -79,10 +85,29 @@ namespace cgl
             e.Context.Framebuffer.Clear(BufferBit.Colour);
             e.Context.Shader = _shad;
             
+            if (_fail != null)
+            {
+                e.Context.View = Matrix4.CreateTranslation(_pan) * Matrix4.CreateScale(_scale);
+                if ((_i % 2) == 0)
+                {
+                    _shad.Texture = _texture2;
+                }
+                else
+                {
+                    _shad.Texture = _texture;
+                }
+                e.Context.Model = Matrix4.CreateBox(new Box(0d, (_fail.Width, _fail.Height)));
+                e.Context.Draw(Shapes.Square);
+                return;
+            }
+            
+            bool check = false;
+            
             if (_enter)
             {
                 _cm.ApplyRules();
                 _enter = false;
+                check = true;
             }
             if (_mousePan)
             {
@@ -96,6 +121,7 @@ namespace cgl
             {
                 _cm.ApplyRules();
                 _applied = true;
+                check = true;
             }
             else if (!Division(0.1))
             {
@@ -126,6 +152,26 @@ namespace cgl
             }
             GenerateTexture();
             
+            GLArray<byte> dat = _texture.GetData<byte>(0, BaseFormat.R);
+            if (check && _testing)
+            {
+                for (int x = 0; x < _old.Width; x++)
+                {
+                    for (int y = 0; y < _old.Height; y++)
+                    {
+                        byte v = Value(_old, x, y);
+                        if (dat[x, y] == v) { continue; }
+                        Console.WriteLine((x, y));
+                        _fail = dat;
+                        break;
+                    }
+                    if (_fail == null) { continue; }
+                    _texture2.SetData(_old.Width, _old.Height, BaseFormat.R, _old);
+                    break;
+                }
+            }
+            if (_fail == null) { _old = dat; }
+            
             e.Context.View = Matrix.Identity;
             e.Context.Model = Matrix4.CreateScale(15d);
             _text.Colour = ColourF.Pink;
@@ -137,6 +183,25 @@ namespace cgl
             Draw(e.Context, new Box(_drawOffset, (_texture.Width, _texture.Height)));
             e.Context.Model = Matrix.Identity;
             e.Context.DrawBox(new Box(_drawOffset, (_texture.Width, _texture.Height)), _texture2);
+        }
+        private byte Value(GLArray<byte> a, int x, int y)
+        {
+            int n = CountNeighbours(a, x, y);
+            bool alive = a[x, y] == 1;
+            if (n == 3) { return 1; }
+            if (!alive) { return 0; }
+            if (n == 2) { return 1; }
+            return 0;
+        }
+        private int CountNeighbours(GLArray<byte> a, int x, int y)
+            => Get(a, x + 1, y) + Get(a, x - 1, y) +
+            Get(a, x + 1, y + 1) + Get(a, x - 1, y + 1) +
+            Get(a, x + 1, y - 1) + Get(a, x - 1, y - 1) +
+            Get(a, x, y + 1) + Get(a, x, y - 1);
+        private int Get(GLArray<byte> a, int x, int y)
+        {
+            if (x < 0 || x >= a.Width || y < 0 || y >= a.Height) { return 0; }
+            return a[x, y];
         }
         
         private void Draw(IDrawingContext dc, IBox bounds)
@@ -242,6 +307,16 @@ namespace cgl
                 _cm.Clear();
                 return;
             }
+            if (e[Keys.T])
+            {
+                _testing = !_testing;
+                return;
+            }
+            if (e[Keys.I])
+            {
+                _i++;
+                return;
+            }
         }
         protected override void OnScroll(ScrollEventArgs e)
         {
@@ -285,6 +360,7 @@ namespace cgl
             {
                 _texture.SetData<byte>(size.X, size.Y, BaseFormat.R, null);
                 _texture2.SetData<byte>(size.X, size.Y, BaseFormat.Rgba, null);
+                _old = new GLArray<byte>(size);
             }
             _clear.Clear(BufferBit.Colour);
             

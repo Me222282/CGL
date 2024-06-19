@@ -45,21 +45,23 @@ namespace cgl
                 if (kvp.Value.it) { continue; }
                 IChunk c = kvp.Value.c;
                 c.CalculateRules(this);
+            }
+            _inIteration = false;
+            foreach (KeyValuePair<Vector2I, CK> kvp in _chunks)
+            {
+                IChunk c = kvp.Value.c;
                 if (c.ShouldDelete())
                 {
                     kvp.Value.delC++;
-                    if (kvp.Value.delC <= 3) { continue; }
+                    if (kvp.Value.delC > 3) { goto Apply; }
                     c.InUse = false;
                     _chunks.TryRemove(kvp);
                     continue;
                 }
                 kvp.Value.delC = 0;
-            }
-            _inIteration = false;
-            foreach (KeyValuePair<Vector2I, CK> kvp in _chunks)
-            {
+            Apply:
                 kvp.Value.Done();
-                kvp.Value.c.ApplyFrame();
+                c.ApplyFrame();
             }
             // Chunks.Iterate(c =>
             // {
