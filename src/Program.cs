@@ -29,16 +29,8 @@ namespace cgl
             _texture.MinFilter = TextureSampling.Nearest;
             _texture.WrapStyle = WrapStyle.EdgeClamp;
             
-            _texture2 = new Texture2D(TextureFormat.Rgba8, TextureData.Byte);
-            _texture2.SetData<byte>(width, height, BaseFormat.Rgba, null);
-            _texture2.MagFilter = TextureSampling.Nearest;
-            _texture2.MinFilter = TextureSampling.Nearest;
-            _texture2.WrapStyle = WrapStyle.EdgeClamp;
-            
             _clear = new Framebuffer();
             _clear[0] = _texture;
-            _clear[1] = _texture2;
-            _clear.DrawBuffers = new FrameDrawTarget[] { FrameDrawTarget.Colour0, FrameDrawTarget.Colour1 };
             
             _shad = new BoolShader();
             _text = new TextRenderer();
@@ -50,7 +42,6 @@ namespace cgl
         
         private BoolShader _shad;
         private Texture2D _texture;
-        private Texture2D _texture2;
         private Framebuffer _clear;
         private TextRenderer _text;
         private Vector2 _drawOffset = 0d;
@@ -64,17 +55,12 @@ namespace cgl
         private Vector2 _pan = 0d;
         private Vector2 _mp;
         private Vector2I _pi;
-        private bool _mouseDown = false;
+        private bool _placeAlive = false;
+        private bool _placeDead = false;
         private bool _mousePan = false;
         private Vector2 _panStart;
         private bool _seeChunks = false;
         private bool _chunkNumbers = false;
-        
-        private GLArray<byte> _old;
-        private GLArray<byte> _fail;
-        private bool _testing = false;
-        
-        private int _i = 0;
         
         private bool Division(double t) => Timer % t >= (t / 2d);
         
@@ -85,29 +71,10 @@ namespace cgl
             e.Context.Framebuffer.Clear(BufferBit.Colour);
             e.Context.Shader = _shad;
             
-            if (_fail != null)
-            {
-                e.Context.View = Matrix4.CreateTranslation(_pan) * Matrix4.CreateScale(_scale);
-                if ((_i % 2) == 0)
-                {
-                    _shad.Texture = _texture2;
-                }
-                else
-                {
-                    _shad.Texture = _texture;
-                }
-                e.Context.Model = Matrix4.CreateBox(new Box(0d, (_fail.Width, _fail.Height)));
-                e.Context.Draw(Shapes.Square);
-                return;
-            }
-            
-            bool check = false;
-            
             if (_enter)
             {
                 _cm.ApplyRules();
                 _enter = false;
-                check = true;
             }
             if (_mousePan)
             {
@@ -121,7 +88,6 @@ namespace cgl
             {
                 _cm.ApplyRules();
                 _applied = true;
-                check = true;
             }
             else if (!Division(0.1))
             {
@@ -129,7 +95,7 @@ namespace cgl
             }
             
             Ignore:
-            if (_mouseDown)
+            if (_placeAlive || _placeDead)
             {
                 Vector2 size = Size / _scale;
                 
@@ -148,29 +114,9 @@ namespace cgl
                 //     _cm.PushCell(pi, 1);
                 // }
                 // _pi = pi;
-                _cm.PushCell(pi, 1);
+                _cm.PushCell(pi, (byte)(_placeAlive ? 1 : 0));
             }
             GenerateTexture();
-            
-            GLArray<byte> dat = _texture.GetData<byte>(0, BaseFormat.R);
-            if (check && _testing)
-            {
-                for (int x = 0; x < _old.Width; x++)
-                {
-                    for (int y = 0; y < _old.Height; y++)
-                    {
-                        byte v = Value(_old, x, y);
-                        if (dat[x, y] == v) { continue; }
-                        Console.WriteLine((x, y));
-                        _fail = dat;
-                        break;
-                    }
-                    if (_fail == null) { continue; }
-                    _texture2.SetData(_old.Width, _old.Height, BaseFormat.R, _old);
-                    break;
-                }
-            }
-            if (_fail == null) { _old = dat; }
             
             e.Context.View = Matrix.Identity;
             e.Context.Model = Matrix4.CreateScale(15d);
@@ -181,8 +127,6 @@ namespace cgl
             // e.Context.View = Matrix4.CreateTranslation(_pan) * Matrix4.CreateScale(_scale);
             e.Context.View = Matrix4.CreateScale(_scale);
             Draw(e.Context, new Box(_drawOffset, (_texture.Width, _texture.Height)));
-            e.Context.Model = Matrix.Identity;
-            e.Context.DrawBox(new Box(_drawOffset, (_texture.Width, _texture.Height)), _texture2);
         }
         private byte Value(GLArray<byte> a, int x, int y)
         {
@@ -219,7 +163,12 @@ namespace cgl
             
             if (e.Button == MouseButton.Left)
             {
-                _mouseDown = true;
+                _placeAlive = true;
+                goto Place;
+            }
+            if (e.Button == MouseButton.Right)
+            {
+                _placeDead = true;
                 goto Place;
             }
             if (e.Button == MouseButton.Middle)
@@ -246,14 +195,14 @@ namespace cgl
             }
             _pi = pi;
             
-            _cm.PushCell(pi, 1);
+            _cm.PushCell(pi, (byte)(_placeAlive ? 1 : 0));
         }
         protected override void OnMouseUp(MouseEventArgs e)
         {
             base.OnMouseUp(e);
             if (e.Button == MouseButton.Left)
             {
-                _mouseDown = false;
+                _placeAlive = false;
                 return;
             }
             if (e.Button == MouseButton.Middle)
@@ -307,16 +256,6 @@ namespace cgl
                 _cm.Clear();
                 return;
             }
-            if (e[Keys.T])
-            {
-                _testing = !_testing;
-                return;
-            }
-            if (e[Keys.I])
-            {
-                _i++;
-                return;
-            }
         }
         protected override void OnScroll(ScrollEventArgs e)
         {
@@ -359,8 +298,6 @@ namespace cgl
             if (_texture.Width != size.X || _texture.Height != size.Y)
             {
                 _texture.SetData<byte>(size.X, size.Y, BaseFormat.R, null);
-                _texture2.SetData<byte>(size.X, size.Y, BaseFormat.Rgba, null);
-                _old = new GLArray<byte>(size);
             }
             _clear.Clear(BufferBit.Colour);
             
@@ -396,10 +333,6 @@ namespace cgl
         private void DrawChunk(IChunk c, Vector2I pos, Vector2I chunking)
         {
             c.WriteToTexture(pos * _cm.ChunkSize, _texture, _cm);
-            if (c is Chunk ku)
-            {
-                ku.WriteCheck(pos * _cm.ChunkSize, _texture2, _cm);
-            }
             if (!_seeChunks) { return; }
             
             Vector2 sertg = chunking / 2d;

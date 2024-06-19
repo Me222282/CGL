@@ -17,8 +17,6 @@ namespace cgl
             
             _checkMap = new GLArray<bool>(size);
             _checkTemp = new GLArray<bool>(size);
-            
-            _data = new GLArray<Colour>(size);
         }
         
         private GLArray<byte> _map;
@@ -245,22 +243,6 @@ namespace cgl
             texture.TexSubImage2D(0,
                 location.X, location.Y, cm.ChunkSize.X, cm.ChunkSize.Y,
                 BaseFormat.R, TextureData.Byte, _map);
-        }
-        private GLArray<Colour> _data;
-        public void WriteCheck(Vector2I location, ITexture texture, ChunkManager cm)
-        {
-            Colour c = new Colour(234, 104, 24, 108);
-            for (int x = 0; x < _size.X; x++)
-            {
-                for (int y = 0; y < _size.Y; y++)
-                {
-                    _data[x, y] = _checkMap[x, y] ? c : Colour.Zero;
-                }
-            }
-            
-            texture.TexSubImage2D(0,
-                location.X, location.Y, cm.ChunkSize.X, cm.ChunkSize.Y,
-                BaseFormat.Rgba, TextureData.Byte, _data);
         }
     }
 }
