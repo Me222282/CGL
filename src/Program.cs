@@ -113,8 +113,9 @@ namespace cgl
                 // {
                 //     _cm.PushCell(pi, 1);
                 // }
-                // _pi = pi;
-                _cm.PushCell(pi, (byte)(_placeAlive ? 1 : 0));
+                PushLine(_pi, pi, (byte)(_placeAlive ? 1 : 0));
+                _pi = pi;
+                //_cm.PushCell(pi, (byte)(_placeAlive ? 1 : 0));
             }
             GenerateTexture();
             
@@ -128,24 +129,36 @@ namespace cgl
             e.Context.View = Matrix4.CreateScale(_scale);
             Draw(e.Context, new Box(_drawOffset, (_texture.Width, _texture.Height)));
         }
-        private byte Value(GLArray<byte> a, int x, int y)
+        private void PushLine(Vector2I start, Vector2I end, byte v)
         {
-            int n = CountNeighbours(a, x, y);
-            bool alive = a[x, y] == 1;
-            if (n == 3) { return 1; }
-            if (!alive) { return 0; }
-            if (n == 2) { return 1; }
-            return 0;
-        }
-        private int CountNeighbours(GLArray<byte> a, int x, int y)
-            => Get(a, x + 1, y) + Get(a, x - 1, y) +
-            Get(a, x + 1, y + 1) + Get(a, x - 1, y + 1) +
-            Get(a, x + 1, y - 1) + Get(a, x - 1, y - 1) +
-            Get(a, x, y + 1) + Get(a, x, y - 1);
-        private int Get(GLArray<byte> a, int x, int y)
-        {
-            if (x < 0 || x >= a.Width || y < 0 || y >= a.Height) { return 0; }
-            return a[x, y];
+            Vector2I dif = end - start;
+            
+            if (dif.X <= 1 && dif.X >= -1 && dif.Y <= 1 && dif.Y >= -1)
+            {
+                _cm.PushCell(end, v);
+                return;
+            }
+            
+            int s, e;
+            Line2 l = new Line2(dif, start);
+            if (Math.Abs(l.Direction.X) < Math.Abs(l.Direction.Y))
+            {
+                s = Math.Min(start.Y, end.Y);
+                e = Math.Max(start.Y, end.Y);
+                for (int y = s; y <= e; y++)
+                {
+                    _cm.PushCell(((int)l.GetX(y), y), v);
+                }
+                return;
+            }
+            
+            s = Math.Min(start.X, end.X);
+            e = Math.Max(start.X, end.X);
+            for (int x = s; x <= e; x++)
+            {
+                _cm.PushCell((x, (int)l.GetY(x)), v);
+            }
+            return;
         }
         
         private void Draw(IDrawingContext dc, IBox bounds)
