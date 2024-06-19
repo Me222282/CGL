@@ -205,6 +205,11 @@ namespace cgl
                 _placeAlive = false;
                 return;
             }
+            if (e.Button == MouseButton.Right)
+            {
+                _placeDead = false;
+                return;
+            }
             if (e.Button == MouseButton.Middle)
             {
                 _mousePan = false;
