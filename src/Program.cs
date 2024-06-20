@@ -23,53 +23,30 @@ namespace cgl
         {
             _cm = new ChunkManager((12, 12));
             
-            _texture = new Texture2D(TextureFormat.R8, TextureData.Byte);
-            _texture.SetData<byte>(width, height, BaseFormat.R, null);
-            _texture.MagFilter = TextureSampling.Nearest;
-            _texture.MinFilter = TextureSampling.Nearest;
-            _texture.WrapStyle = WrapStyle.EdgeClamp;
-            
-            _clear = new Framebuffer();
-            _clear[0] = _texture;
-            
-            _shad = new BoolShader();
-            _text = new TextRenderer();
-            
-            DrawContext.RenderState.Blending = true;
-            DrawContext.RenderState.SourceScaleBlending = BlendFunction.SourceAlpha;
-            DrawContext.RenderState.DestinationScaleBlending = BlendFunction.OneMinusSourceAlpha;
+            _gm = new GraphicalManager(width, height, DrawContext);
         }
         
-        private BoolShader _shad;
-        private Texture2D _texture;
-        private Framebuffer _clear;
-        private TextRenderer _text;
-        private Vector2 _drawOffset = 0d;
+        private GraphicalManager _gm;
         
         private ChunkManager _cm;
         private bool _applied = false;
         private bool _palying  = false;
         private bool _enter = false;
+        private double _dt = 0.1;
         
-        private double _scale = 5d;
-        private Vector2 _pan = 0d;
         private Vector2 _mp;
         private Vector2I _pi;
-        private bool _placeAlive = false;
-        private bool _placeDead = false;
+        private bool _place = false;
         private bool _mousePan = false;
         private Vector2 _panStart;
-        private bool _seeChunks = false;
-        private bool _chunkNumbers = false;
+        
+        private IPlaceMode _placeMode = IPlaceMode.Default;
         
         private bool Division(double t) => Timer % t >= (t / 2d);
         
         protected override void OnUpdate(FrameEventArgs e)
         {
             base.OnUpdate(e);
-            
-            e.Context.Framebuffer.Clear(BufferBit.Colour);
-            e.Context.Shader = _shad;
             
             if (_enter)
             {
@@ -78,28 +55,27 @@ namespace cgl
             }
             if (_mousePan)
             {
-                _pan += (_mp - _panStart) / _scale;
+                _gm.Pan += (_mp - _panStart) / _gm.Scale;
                 _panStart = _mp;
             }
             
-            if (!_palying) { goto Ignore; }
-            
-            if (!_applied && Division(0.1))
+            if (_palying)
             {
-                _cm.ApplyRules();
-                _applied = true;
+                bool time = Division(_dt);
+                if (!_applied && time)
+                {
+                    _cm.ApplyRules();
+                    _applied = true;
+                }
+                else if (!time)
+                {
+                    _applied = false;
+                }
             }
-            else if (!Division(0.1))
-            {
-                _applied = false;
-            }
             
-            Ignore:
-            if (_placeAlive || _placeDead)
+            if (_place && _placeMode.Brush)
             {
-                Vector2 size = Size / _scale;
-                
-                Vector2 pos = ((_mp / _scale) - _pan);
+                Vector2 pos = ((_mp / _gm.Scale) - _gm.Pan);
                 Vector2I pi = ((int)Math.Abs(pos.X), (int)Math.Abs(pos.Y));
                 if (pos.X < 0)
                 {
@@ -113,29 +89,20 @@ namespace cgl
                 // {
                 //     _cm.PushCell(pi, 1);
                 // }
-                PushLine(_pi, pi, (byte)(_placeAlive ? 1 : 0));
+                PushLine(_pi, pi);
                 _pi = pi;
                 //_cm.PushCell(pi, (byte)(_placeAlive ? 1 : 0));
             }
-            GenerateTexture();
             
-            e.Context.View = Matrix.Identity;
-            e.Context.Model = Matrix4.CreateScale(15d);
-            _text.Colour = ColourF.Pink;
-            _text.DrawCentred(e.Context, _pi.ToString(), Shapes.SampleFont, 0, 0);
-            
-            e.Context.Projection = Matrix4.CreateOrthographic(Width, Height, 0d, 1d);
-            // e.Context.View = Matrix4.CreateTranslation(_pan) * Matrix4.CreateScale(_scale);
-            e.Context.View = Matrix4.CreateScale(_scale);
-            Draw(e.Context, new Box(_drawOffset, (_texture.Width, _texture.Height)));
+            _gm.Render(_cm, Size);
         }
-        private void PushLine(Vector2I start, Vector2I end, byte v)
+        private void PushLine(Vector2I start, Vector2I end)
         {
             Vector2I dif = end - start;
             
             if (dif.X <= 1 && dif.X >= -1 && dif.Y <= 1 && dif.Y >= -1)
             {
-                _cm.PushCell(end, v);
+                _placeMode.Place(_cm, end);
                 return;
             }
             
@@ -147,7 +114,7 @@ namespace cgl
                 e = Math.Max(start.Y, end.Y);
                 for (int y = s; y <= e; y++)
                 {
-                    _cm.PushCell(((int)l.GetX(y), y), v);
+                    _placeMode.Place(_cm, ((int)l.GetX(y), y));
                 }
                 return;
             }
@@ -156,47 +123,40 @@ namespace cgl
             e = Math.Max(start.X, end.X);
             for (int x = s; x <= e; x++)
             {
-                _cm.PushCell((x, (int)l.GetY(x)), v);
+                _placeMode.Place(_cm, (x, (int)l.GetY(x)));
             }
             return;
-        }
-        
-        private void Draw(IDrawingContext dc, IBox bounds)
-        {
-            dc.Shader = _shad;
-            _shad.Texture = _texture;
-
-            dc.Model = Matrix4.CreateBox(bounds);
-            dc.Draw(Shapes.Square);
         }
 
         protected override void OnMouseDown(MouseEventArgs e)
         {
             base.OnMouseDown(e);
             
-            if (e.Button == MouseButton.Left)
+            MouseButton button = e.Button;
+            if (this[Mods.Shift])
             {
-                _placeAlive = true;
-                goto Place;
+                // Swap left and right
+                button = (3 - button);
             }
-            if (e.Button == MouseButton.Right)
-            {
-                _placeDead = true;
-                goto Place;
-            }
+            
             if (e.Button == MouseButton.Middle)
             {
                 _mousePan = true;
                 _panStart = _mp;
                 return;
             }
+            if (button == MouseButton.Left)
+            {
+                _place = true;
+                _placeMode.PushAlive = true;
+            }
+            else if (button == MouseButton.Right)
+            {
+                _place = true;
+                _placeMode.PushAlive = false;
+            }
             
-            return;
-            
-        Place:
-            Vector2 size = Size / _scale;
-            
-            Vector2 pos = ((_mp / _scale) - _pan);
+            Vector2 pos = ((_mp / _gm.Scale) - _gm.Pan);
             Vector2I pi = ((int)Math.Abs(pos.X), (int)Math.Abs(pos.Y));
             if (pos.X < 0)
             {
@@ -208,19 +168,19 @@ namespace cgl
             }
             _pi = pi;
             
-            _cm.PushCell(pi, (byte)(_placeAlive ? 1 : 0));
+            _placeMode.Place(_cm, pi);
         }
         protected override void OnMouseUp(MouseEventArgs e)
         {
             base.OnMouseUp(e);
             if (e.Button == MouseButton.Left)
             {
-                _placeAlive = false;
+                _place = this[MouseButton.Right];
                 return;
             }
             if (e.Button == MouseButton.Right)
             {
-                _placeDead = false;
+                _place = this[MouseButton.Left];
                 return;
             }
             if (e.Button == MouseButton.Middle)
@@ -239,128 +199,71 @@ namespace cgl
         {
             base.OnKeyDown(e);
             
-            if (e[Keys.Space])
+            switch (e.Key)
             {
-                _palying = !_palying;
-                return;
-            }
-            if (e[Keys.Enter])
-            {
-                _enter = true;
-                return;
-            }
-            if (e[Keys.Equal])
-            {
-                _scale *= 1.1;
-                return;
-            }
-            if (e[Keys.Minus])
-            {
-                _scale /= 1.1;
-                return;
-            }
-            if (e[Keys.B])
-            {
-                _seeChunks = !_seeChunks;
-                return;
-            }
-            if (e[Keys.N])
-            {
-                _chunkNumbers = !_chunkNumbers;
-                return;
-            }
-            if (e[Keys.C])
-            {
-                _cm.Clear();
-                return;
+                case Keys.Space:
+                    _palying = !_palying;
+                    return;
+                case Keys.Enter:
+                    _enter = true;
+                    return;
+                case Keys.Equal:
+                    _gm.Scale *= 1.1;
+                    return;
+                case Keys.Minus:
+                    _gm.Scale /= 1.1;
+                    return;
+                case Keys.B:
+                    _gm.SeeChunks = !_gm.SeeChunks;
+                    return;
+                case Keys.N:
+                    _gm.ChunkNumbers = !_gm.ChunkNumbers;
+                    return;
+                case Keys.C:
+                    _cm.Clear();
+                    return;
+                case Keys.D1:
+                    _placeMode = IPlaceMode.Default;
+                    return;
+                case Keys.D2:
+                    _placeMode = PlaceMode.Brush1;
+                    return;
+                case Keys.D3:
+                    _placeMode = PlaceMode.Brush2;
+                    return;
             }
         }
         protected override void OnScroll(ScrollEventArgs e)
         {
             base.OnScroll(e);
             
+            double oldZoom = _gm.Scale;
             if (this[Mods.Control])
             {
-                double newZoom = _scale + (e.DeltaY * 0.03 * _scale);
+                double newZoom = oldZoom + (e.DeltaY * 0.03 * oldZoom);
 
                 if (newZoom < 0) { return; }
 
-                double oldZoom = _scale;
-                _scale = newZoom;
+                _gm.Scale = newZoom;
                 
-                Vector2 pointRelOld = (_mp / oldZoom) - _pan;
-                Vector2 pointRelNew = (_mp / newZoom) - _pan;
-                _pan += pointRelNew - pointRelOld;
+                Vector2 pointRelOld = (_mp / oldZoom) - _gm.Pan;
+                Vector2 pointRelNew = (_mp / newZoom) - _gm.Pan;
+                _gm.Pan += pointRelNew - pointRelOld;
                 return;
             }
             if (this[Mods.Shift])
             {
-                _pan += new Vector2(-e.DeltaY, e.DeltaX) * 5d / _scale;
+                _gm.Pan += new Vector2(-e.DeltaY, e.DeltaX) * 5d / oldZoom;
                 return;
             }
             
-            _pan += new Vector2(-e.DeltaX, e.DeltaY) * 5d / _scale;
+            _gm.Pan += new Vector2(-e.DeltaX, e.DeltaY) * 5d / oldZoom;
         }
-        
-        private void GenerateTexture()
+
+        protected override void OnSizeChange(VectorIEventArgs e)
         {
-            Vector2 of = _pan / _cm.ChunkSize;
-            Vector2I offset = ((int)Math.Round(of.X), (int)Math.Round(of.Y));
-            
-            _drawOffset = _pan - (offset * _cm.ChunkSize);
-            
-            Vector2 tmp = (Size / _scale) / _cm.ChunkSize;
-            Vector2I chunking = (Vector2I)tmp + 2;
-            offset += chunking / 2;
-            Vector2I size = _cm.ChunkSize * chunking;
-            if (_texture.Width != size.X || _texture.Height != size.Y)
-            {
-                _texture.SetData<byte>(size.X, size.Y, BaseFormat.R, null);
-            }
-            _clear.Clear(BufferBit.Colour);
-            
-            // Keep 0,0 in centre (when theres no panning)
-            if (chunking.X % 2 == 1) { _drawOffset.X += _cm.ChunkSize.X / 2d; }
-            if (chunking.Y % 2 == 1) { _drawOffset.Y += _cm.ChunkSize.Y / 2d; }
-            
-            if ((chunking.X * chunking.Y) >= (_cm.NumChunks * 2))
-            {
-                // Iterate through all chunks
-                _cm.Iterate((k, c) =>
-                {
-                    Vector2I pos = c.Location + offset;
-                    // Ignore outsiders
-                    if (pos.X < 0 || pos.Y < 0 || pos.X >= chunking.X || pos.Y >= chunking.Y) { return; }
-                    DrawChunk(c, pos, chunking);
-                });
-                return;
-            }
-            
-            // Iterate through screen chunk grid
-            for (int x = 0; x < chunking.X; x++)
-            {
-                for (int y = 0; y < chunking.Y; y++)
-                {
-                    Vector2I pos = (x, y);
-                    IChunk ic = _cm.GetChunkRead(pos - offset);
-                    if (ic is Empty) { continue; }
-                    DrawChunk(ic, pos, chunking);
-                }
-            }
-        }
-        private void DrawChunk(IChunk c, Vector2I pos, Vector2I chunking)
-        {
-            c.WriteToTexture(pos * _cm.ChunkSize, _texture, _cm);
-            if (!_seeChunks) { return; }
-            
-            Vector2 sertg = chunking / 2d;
-            DrawContext.View = Matrix4.CreateTranslation((_cm.ChunkSize * (-sertg + pos + (0.5, 0.5)) + _drawOffset) * _scale);
-            DrawContext.Model = Matrix.Identity;
-            DrawContext.DrawBorderBox(new Box(0d, _cm.ChunkSize * _scale), ColourF.Zero, 2, ColourF.LightGrey);
-            if (!_chunkNumbers) { return; }
-            DrawContext.Model = Matrix4.CreateScale(10d);
-            _text.Colour = ColourF.Blue;
-            _text.DrawCentred(DrawContext, c.Location.ToString(), Shapes.SampleFont, 0, 0);
+            base.OnSizeChange(e);
+            DrawContext.Projection = Matrix4.CreateOrthographic(Width, Height, 0d, 1d);
         }
     }
 }
