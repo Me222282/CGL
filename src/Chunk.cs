@@ -38,9 +38,13 @@ namespace cgl
         public bool InUse { get; set; } = true;
         
         private int _useCount = 0;
+        // private int _checkCount = 0;
+        // private int _aliveCount = 0;
+        private bool _doSwap = true;
         public void AddCheck(int x, int y)
         {
             _useCount++;
+            //_checkCount++;
             if (_cm.ApplingRules)
             {
                 _checkTemp[x, y] = true;
@@ -48,13 +52,14 @@ namespace cgl
             }
             _checkMap[x, y] = true;
         }
-        public bool ShouldDelete() => _useCount == 0;
+        public bool ShouldDelete() => _useCount == 0;// && _aliveCount == 0;
         public void PushCell(int x, int y, byte v)
         {
             _map[x, y] = v;
             _checkMap[x, y] = true;
             WriteAround(_checkMap, x, y);
             _useCount++;
+            //_aliveCount++;
         }
         
         private IChunk _left;
@@ -71,15 +76,22 @@ namespace cgl
         {
             _cm = cm;
             
+            // if (_checkCount == 0)
+            // {
+            //     _doSwap = false;
+            //     return;
+            // }
+            // _checkCount = 0;
+            // _aliveCount = 0;
+            
             for (int x = 0; x < _size.X; x++)
             {
                 for (int y = 0; y < _size.Y; y++)
                 {
-                    //bool c = _checkMap[x, y];
                     if (!_checkMap[x, y])
                     {
                         byte i = _map[x, y];
-                        if (i > 0) { _useCount++; }
+                        if (i > 0) { _useCount++; /*_aliveCount++;*/ }
                         _temp[x, y] = i;
                         continue;
                     }
@@ -90,8 +102,8 @@ namespace cgl
                     if (n == 3)
                     {
                         _temp[x, y] = 1;
+                        //_aliveCount++;
                         _useCount++;
-                        //_checkTemp[x, y] = true;
                         if (!alive)
                         {
                             WriteAround(_checkTemp, x, y);
@@ -106,8 +118,8 @@ namespace cgl
                     if (n == 2)
                     {
                         _temp[x, y] = 1;
+                        //_aliveCount++;
                         _useCount++;
-                        //_checkTemp[x, y] = true;
                         continue;
                     }
                     _temp[x, y] = 0;
@@ -117,7 +129,12 @@ namespace cgl
             }
         }
         public void ApplyFrame()
-        {
+        {   
+            // if (!_doSwap)
+            // {
+            //     _doSwap = true;
+            //     return;
+            // }
             _useCount = 0;
             
             // swap memory
@@ -172,6 +189,7 @@ namespace cgl
             if (lx == ly && lx == gx && lx == gy)
             {
                 map[x, y] = true;
+                //_checkCount++;
                 return;
             }
             

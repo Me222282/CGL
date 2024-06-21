@@ -231,6 +231,9 @@ namespace cgl
                 case Keys.D3:
                     _placeMode = PlaceMode.Brush2;
                     return;
+                case Keys.G:
+                    _placeMode = PlaceMode.Glider;
+                    return;
             }
         }
         protected override void OnScroll(ScrollEventArgs e)

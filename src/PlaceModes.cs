@@ -6,7 +6,12 @@ namespace cgl
     {
         public static IPlaceMode Brush1 { get; } = new Brush1C();
         public static IPlaceMode Brush2 { get; } = new Brush2C();
-
+        
+        public static IPlaceMode Glider { get; } = new PresetPattern(new Vector2I[]
+        {
+            (0, 0), (1, 0), (-1, 0), (1, 1), (0, 2) 
+        });
+        
         private class Brush1C : IPlaceMode
         {
             private byte _v = 1;
