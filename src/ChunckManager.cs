@@ -110,6 +110,13 @@ namespace cgl
         
         public void PushCell(Vector2I location, byte v)
         {
+            (Vector2I ch, Vector2I pos) = GetChunkPos(location);
+            
+            IChunk c = GetChunkWrite(ch);
+            c.PushCell(pos.X, ChunkSize.Y - pos.Y - 1, v);
+        }
+        public (Vector2I, Vector2I) GetChunkPos(Vector2I location)
+        {
             Vector2I ch = location / ChunkSize;
             
             Vector2I pos = (location.X % ChunkSize.X, location.Y % ChunkSize.Y);
@@ -124,8 +131,7 @@ namespace cgl
                 ch.Y -= 1;
             }
             
-            IChunk c = GetChunkWrite(ch);
-            c.PushCell(pos.X, ChunkSize.Y - pos.Y - 1, v);
+            return (ch, pos);
         }
         public void Iterate(Action<Vector2I, IChunk> action)
         {

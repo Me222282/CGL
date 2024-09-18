@@ -40,7 +40,7 @@ namespace cgl
         private int _useCount = 0;
         // private int _checkCount = 0;
         // private int _aliveCount = 0;
-        private bool _doSwap = true;
+        // private bool _doSwap = true;
         public void AddCheck(int x, int y)
         {
             _useCount++;

@@ -39,6 +39,13 @@ namespace cgl
         public double Scale { get; set; } = 5d;
         public Vector2 Pan { get; set; } = Vector2.Zero;
         
+        private RectangleI _visableChunks;
+        public Vector2I HoverPoint { get; set; }
+        public bool ShowHover { get; set; } = false;
+        
+        public RectangleI Highlight { get; set; }
+        //public bool ShowHighlight { get; set; } = false;
+        
         public void Render(ChunkManager cm, Vector2I screen)
         {
             IDrawingContext dc = Context;
@@ -56,6 +63,40 @@ namespace cgl
             // e.Context.View = Matrix4.CreateTranslation(_pan) * Matrix4.CreateScale(_scale);
             dc.View = Matrix4.CreateScale(Scale);
             Draw(dc, new Box(_drawOffset, (_texture.Width, _texture.Height)));
+            
+            if (ShowHover)
+            {
+                dc.Model = null;
+                Vector2 pos = GetScreenPos(cm, HoverPoint) + 0.5;
+                ColourF colour = ColourF.Orange;
+                colour.A = 0.5f;
+                dc.DrawBorderBox(new Box(pos + _drawOffset, 1d), colour,
+                    2 / Scale, ColourF.DarkOrange);
+            }
+            if (Highlight.Size != Vector2I.Zero)
+            {
+                dc.Model = null;
+                Vector2 size = Highlight.Size;
+                Vector2 pos = GetScreenPos(cm, Highlight.Location) + (size.X / 2d, size.Y / -2d);
+                ColourF colour = ColourF.LightBlue;
+                colour.A = 0.5f;
+                dc.DrawBorderBox(new Box(pos + _drawOffset, size), colour,
+                    2 / Scale, ColourF.Blue);
+            }
+        }
+        private Vector2 GetScreenPos(ChunkManager cm, Vector2I worldPos)
+        {
+            // if (worldPos.X < 0)
+            // {
+            //     worldPos.X--;
+            // }
+            // if (worldPos.Y < 0)
+            // {
+            //     worldPos.Y--;
+            // }
+            
+            return worldPos + ((_visableChunks.Location) * cm.ChunkSize) -
+                (_texture.Width / 2, _texture.Height / 2);
         }
         
         private void Draw(IDrawingContext dc, IBox bounds)
@@ -77,6 +118,8 @@ namespace cgl
             Vector2 tmp = (screen / Scale) / cm.ChunkSize;
             Vector2I chunking = (Vector2I)tmp + 2;
             offset += chunking / 2;
+            _visableChunks.Location = offset;
+            _visableChunks.Size = chunking;
             Vector2I size = cm.ChunkSize * chunking;
             if (_texture.Width != size.X || _texture.Height != size.Y)
             {
