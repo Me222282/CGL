@@ -313,6 +313,11 @@ namespace cgl
                     _mouseMode = MouseMode.Select;
                     return;
                 case Keys.A:
+                    if (e[Mods.Control])
+                    {
+                        SelectAll();
+                        return;
+                    }
                     _mouseMode = MouseMode.Place;
                     return;
                 case Keys.R:
@@ -436,6 +441,35 @@ namespace cgl
                 yCov = 0;
                 xChunk = Math.Min(width - xCov, xChunk);
             }
+        }
+        
+        private void SelectAll()
+        {
+            int minX = int.MaxValue;
+            int minY = int.MaxValue;
+            int maxX = int.MinValue;
+            int maxY = int.MinValue;
+            _cm.Iterate((v, c) =>
+            {
+                if (!c.IsSignificant()) { return; }
+                
+                if (minX > v.X) { minX = v.X; }
+                if (maxX < v.X) { maxX = v.X; }
+                if (minY > v.Y) { minY = v.Y; }
+                if (maxY < v.Y) { maxY = v.Y; }
+            });
+            
+            // maxX += 1;
+            // maxY += 1;
+            
+            int cx = _cm.ChunkSize.X;
+            int cy = _cm.ChunkSize.Y;
+            
+            _gm.Highlight = new RectangleI(
+                minX * cx, (maxY + 1) * cy,
+                (maxX - minX + 1) * cx,
+                (maxY - minY + 1) * cy
+            );
         }
     }
 }

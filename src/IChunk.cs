@@ -14,6 +14,7 @@ namespace cgl
         public void CalculateRules(ChunkManager cm);
         public void ApplyFrame();
         public bool ShouldDelete();
+        public bool IsSignificant();
         
         public void PushCell(int x, int y, byte v);
         public void WriteToTexture(Vector2I location, ITexture texture, ChunkManager cm);

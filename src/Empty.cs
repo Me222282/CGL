@@ -17,6 +17,7 @@ namespace cgl
         public void PushCell(int x, int y, byte v) { }
         
         public bool ShouldDelete() => true;
+        public bool IsSignificant() => false;
         public void WriteToTexture(Vector2I location, ITexture texture, ChunkManager cm) { }
     }
 }

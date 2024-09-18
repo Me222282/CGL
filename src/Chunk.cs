@@ -38,6 +38,7 @@ namespace cgl
         public bool InUse { get; set; } = true;
         
         private int _useCount = 0;
+        private int _sigCount = 0;
         // private int _checkCount = 0;
         // private int _aliveCount = 0;
         // private bool _doSwap = true;
@@ -53,9 +54,11 @@ namespace cgl
             _checkMap[x, y] = true;
         }
         public bool ShouldDelete() => _useCount == 0;// && _aliveCount == 0;
+        public bool IsSignificant() => _sigCount != 0;
         public void PushCell(int x, int y, byte v)
         {
             _map[x, y] = v;
+            if (v == 1) { _sigCount++; }
             _checkMap[x, y] = true;
             WriteAround(_checkMap, x, y);
             _useCount++;
@@ -84,6 +87,8 @@ namespace cgl
             // _checkCount = 0;
             // _aliveCount = 0;
             
+            _sigCount = 0;
+            
             for (int x = 0; x < _size.X; x++)
             {
                 for (int y = 0; y < _size.Y; y++)
@@ -91,7 +96,7 @@ namespace cgl
                     if (!_checkMap[x, y])
                     {
                         byte i = _map[x, y];
-                        if (i > 0) { _useCount++; /*_aliveCount++;*/ }
+                        if (i > 0) { _useCount++; _sigCount++; }
                         _temp[x, y] = i;
                         continue;
                     }
@@ -104,6 +109,7 @@ namespace cgl
                         _temp[x, y] = 1;
                         //_aliveCount++;
                         _useCount++;
+                        _sigCount++;
                         if (!alive)
                         {
                             WriteAround(_checkTemp, x, y);
@@ -120,6 +126,7 @@ namespace cgl
                         _temp[x, y] = 1;
                         //_aliveCount++;
                         _useCount++;
+                        _sigCount++;
                         continue;
                     }
                     _temp[x, y] = 0;
