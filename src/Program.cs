@@ -254,6 +254,9 @@ namespace cgl
             
             switch (e.Key)
             {
+                case Keys.Escape:
+                    _gm.Highlight = RectangleI.Zero;
+                    return;
                 case Keys.Space:
                     _palying = !_palying;
                     return;
@@ -296,15 +299,19 @@ namespace cgl
                     return;
                 case Keys.D1:
                     _placeMode = IPlaceMode.Default;
+                    _mouseMode = MouseMode.Place;
                     return;
                 case Keys.D2:
                     _placeMode = PlaceMode.Brush1;
+                    _mouseMode = MouseMode.Place;
                     return;
                 case Keys.D3:
                     _placeMode = PlaceMode.Brush2;
+                    _mouseMode = MouseMode.Place;
                     return;
                 case Keys.G:
                     _placeMode = PlaceMode.Glider;
+                    _mouseMode = MouseMode.Place;
                     return;
                 case Keys.P:
                     _mouseMode = MouseMode.Pan;
@@ -325,6 +332,18 @@ namespace cgl
                     return;
                 case Keys.H:
                     _gm.ShowHover = !_gm.ShowHover;
+                    return;
+                case Keys.Delete:
+                case Keys.BackSpace:
+                    FillSelection(0);
+                    _gm.Highlight = RectangleI.Zero;
+                    return;
+                case Keys.F:
+                    if (e[Mods.Control])
+                    {
+                        FillSelection(1);
+                        return;
+                    }
                     return;
             }
         }
@@ -470,6 +489,20 @@ namespace cgl
                 (maxX - minX + 1) * cx,
                 (maxY - minY + 1) * cy
             );
+        }
+        private void FillSelection(byte v)
+        {
+            RectangleI bounds = _gm.Highlight;
+            if (bounds.Width == 0 || bounds.Height == 0) { return; }
+            
+            _clipboard = new byte[bounds.Width, bounds.Height];
+            
+            IterateBounds(bounds.Width, bounds.Height,
+                (bounds.Left, bounds.Bottom), true,
+                (c, v1, v2) =>
+                {
+                    c.PushCell(v2.X, v2.Y, v);
+                });
         }
     }
 }
