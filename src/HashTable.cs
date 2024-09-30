@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
@@ -7,7 +8,7 @@ using Zene.Structs;
 namespace cgl
 {
     // separately sized buckets and entries
-    public class HashTable<K, V>
+    public class HashTable<K, V> : IEnumerable<KeyValuePair<K, V>>
         where V : class
         where K : notnull
     {
@@ -31,7 +32,6 @@ namespace cgl
         }
         
         private int _count;
-        private int _last = -1;
         private int _capacity;
         private int _freeCount;
         private int _freeStart = -1;
@@ -86,7 +86,7 @@ namespace cgl
             }
         }
         
-        public void Add(K key, V value)
+        public void TryAdd(K key, V value)
         {
             // Need to increase size
             if (_count == _capacity)
@@ -109,18 +109,6 @@ namespace cgl
                 Entry f = _entries[index];
                 _freeStart = f.Next;
                 _freeCount--;
-                // if (f.Next < 0 && _freeCount > 0)
-                // {
-                //     throw new Exception();
-                // }
-                if (index > _last)
-                {
-                    _last = index;
-                }
-            }
-            else
-            {
-                _last++;
             }
             ref Entry current = ref _entries[index];
             
@@ -145,7 +133,8 @@ namespace cgl
             current.Hashcode = hashcode;
             bucket = index;
         }
-        public bool Remove(K key)
+        public bool TryRemove(KeyValuePair<K, V> pair) => TryRemove(pair.Key);
+        public bool TryRemove(K key)
         {
             int hashcode = key.GetHashCode();
             ref int bucket = ref _buckets[GetIndex(hashcode)];
@@ -155,19 +144,20 @@ namespace cgl
             int index = bucket;
             int lastIndex = -1;
             ref Entry current = ref _entries[index];
-            while (current.Hashcode != hashcode && current.Data.Value != null && current.Next >= 0)
+            while (current.Data.Value != null && current.Next >= 0)
             {
+                if (current.Hashcode == hashcode)
+                {
+                    goto Found;
+                }
                 lastIndex = index;
                 index = current.Next;
                 current = ref _entries[index];
             }
             
-            // already been removed
-            if (current.Hashcode != hashcode || current.Data.Value == null)
-            {
-                return false;
-            }
+            return false;
             
+        Found:
             if (lastIndex >= 0)
             {
                 _entries[lastIndex].Next = current.Next;
@@ -181,17 +171,6 @@ namespace cgl
             current.Data = new KeyValuePair<K, V>();
             current.Hashcode = 0;
             _count--;
-            // free list contains locations after index, so this is then ignored.
-            // no need to increase _freeCount if at last 
-            if (index == _last)
-            {
-                int i = _last - 1;
-                while (_entries[i].Data.Value == null)
-                {
-                    i--;
-                }
-                _last = i;
-            }
             
             current.Next = _freeStart;
             _freeStart = index;
@@ -226,10 +205,13 @@ namespace cgl
         }
         public void Clear() => Array.Fill(_buckets, -1);
         
+        public IEnumerator<KeyValuePair<K, V>> GetEnumerator() => new Enumerator(this);
+        IEnumerator IEnumerable.GetEnumerator() => new Enumerator(this);
+        
         // fix local store of _entries
         public void Iterate(Action<KeyValuePair<K, V>> act, int threads)
         {
-            int range = _last + 1;
+            int range = _capacity;
             int baseSize = range / threads;
             int extras = range % threads;
             
@@ -276,6 +258,58 @@ namespace cgl
             for (int i = 1; i < threads; i++)
             {
                 tasks[i].Wait();
+            }
+        }
+
+        private struct Enumerator : IEnumerator<KeyValuePair<K, V>>
+        {
+            public Enumerator(HashTable<K, V> table)
+            {
+                _table = table;
+                _index = -1;
+                _total = table._count;
+                _count = 0;
+                _current = default;
+            }
+            
+            private HashTable<K, V> _table;
+            private int _index;
+            private int _count;
+            private int _total;
+            private KeyValuePair<K, V> _current;
+            public KeyValuePair<K, V> Current => _current;
+            object IEnumerator.Current => Current;
+            
+            public void Dispose() { }
+            
+            public bool MoveNext()
+            {
+                _total = Math.Max(_total, _table.Count);
+                
+                if (_count >= _total) { return false; }
+                
+                Entry current;
+                do
+                {
+                    _index++;
+                    if (_index >= _table._capacity)
+                    {
+                        return false;
+                    }
+                    current = _table._entries[_index];
+                }
+                while (current.Data.Value == null);
+                
+                _count++;
+                _current = current.Data;
+                return true;
+            }
+            
+            public void Reset()
+            {
+                _index = -1;
+                _count = 0;
+                _current = default;
             }
         }
     }

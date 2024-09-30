@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using Zene.Structs;
 
 namespace cgl
@@ -23,7 +24,7 @@ namespace cgl
         }
         
         public ChunkManager(Vector2I size)
-        {
+        {   
             ChunkSize = size;
             _chunks = new ConcurrentDictionary<Vector2I, CK>();
             // _chunks = new HashTable<Vector2I, CK>(50);
@@ -40,14 +41,20 @@ namespace cgl
         public void ApplyRules()
         {
             _inIteration = true;
-            foreach (KeyValuePair<Vector2I, CK> kvp in _chunks)
+            Parallel.ForEach(_chunks, kvp =>
             {
-                if (kvp.Value.it) { continue; }
+                if (kvp.Value.it) { return; }
                 IChunk c = kvp.Value.c;
                 c.CalculateRules(this);
-            }
+            });
+            // foreach (KeyValuePair<Vector2I, CK> kvp in _chunks)
+            // {
+            //     if (kvp.Value.it) { continue; }
+            //     IChunk c = kvp.Value.c;
+            //     c.CalculateRules(this);
+            // }
             _inIteration = false;
-            foreach (KeyValuePair<Vector2I, CK> kvp in _chunks)
+            Parallel.ForEach(_chunks, kvp =>
             {
                 IChunk c = kvp.Value.c;
                 if (c.ShouldDelete())
@@ -56,13 +63,29 @@ namespace cgl
                     if (kvp.Value.delC > 3) { goto Apply; }
                     c.InUse = false;
                     _chunks.TryRemove(kvp);
-                    continue;
+                    return;
                 }
                 kvp.Value.delC = 0;
             Apply:
                 kvp.Value.Done();
                 c.ApplyFrame();
-            }
+            });
+            // foreach (KeyValuePair<Vector2I, CK> kvp in _chunks)
+            // {
+            //     IChunk c = kvp.Value.c;
+            //     if (c.ShouldDelete())
+            //     {
+            //         kvp.Value.delC++;
+            //         if (kvp.Value.delC > 3) { goto Apply; }
+            //         c.InUse = false;
+            //         _chunks.TryRemove(kvp);
+            //         continue;
+            //     }
+            //     kvp.Value.delC = 0;
+            // Apply:
+            //     kvp.Value.Done();
+            //     c.ApplyFrame();
+            // }
             // _inIteration = true;
             // _chunks.Iterate(kvp =>
             // {
@@ -79,7 +102,7 @@ namespace cgl
             //         kvp.Value.delC++;
             //         if (kvp.Value.delC > 3) { goto Apply; }
             //         c.InUse = false;
-            //         _chunks.Remove(kvp.Key);
+            //         _chunks.TryRemove(kvp.Key);
             //         return;
             //     }
             //     kvp.Value.delC = 0;
