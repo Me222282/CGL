@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Zene.Graphics;
 using Zene.Structs;
 using Zene.Windowing;
@@ -24,6 +25,60 @@ namespace cgl
             p.Dispose();
             
             Core.Terminate();
+            
+            // Random r = new Random();
+            // for (int t = 0; t < 10000; t++)
+            // {
+            //     Console.WriteLine(t);
+            //     List<(bool, string)> ll = new List<(bool, string)>();
+            //     HashTable<int, string> ht = new HashTable<int, string>();
+                
+            //     int l = 100;
+                
+            //     for (int i = 0; i < l; i++)
+            //     {
+            //         string s = r.Next().ToString();
+            //         ll.Add((true, s));
+            //         ht.Add(i, s);
+            //     }
+            //     for (int i = 0; i < 500; i++)
+            //     {
+            //         for (int j = 0; j < 50; j++)
+            //         {
+            //             int ind = r.Next(0, l);
+            //             ht.Remove(ind);
+            //             ll[ind] = (false, null);
+            //         }
+            //         int ol = l;
+            //         l += 50;
+            //         for (int j = ol; j < l; j++)
+            //         {
+            //             string s = r.Next().ToString();
+            //             ll.Add((true, s));
+            //             ht.Add(j, s);
+            //         }
+                    
+            //         CheckIntegrity(ll, ht);
+            //     }
+            // }
+            
+            //ht.Iterate(kvp => Console.WriteLine(kvp.Value), 1);
+        }
+        
+        private static void CheckIntegrity(List<(bool, string)> ll, HashTable<int, string> ht)
+        {
+            for (int i = 0; i < ll.Count; i++)
+            {
+                bool b = ht.TryGetValue(i, out string str);
+                if (b != ll[i].Item1)
+                {
+                    Console.WriteLine("Probe1");
+                }
+                if (str != ll[i].Item2)
+                {
+                    Console.WriteLine("Probe2");
+                }
+            }
         }
         
         public Program(int width, int height, string title)
@@ -336,7 +391,7 @@ namespace cgl
                 case Keys.Delete:
                 case Keys.BackSpace:
                     FillSelection(0);
-                    _gm.Highlight = RectangleI.Zero;
+                    //_gm.Highlight = RectangleI.Zero;
                     return;
                 case Keys.F:
                     if (e[Mods.Control])
@@ -411,17 +466,26 @@ namespace cgl
         {
             if (_clipboard == null || _clipboard.Length == 0) { return; }
             
+            int x = _selectStart.X;
+            int y = _selectStart.Y;
+            RectangleI bounds = _gm.Highlight;
+            if (bounds.Width > 0 && bounds.Height > 0)
+            {
+                x = bounds.Left;
+                y = bounds.Top - 1;
+            }
+            
             int width = _clipboard.GetLength(0);
             int height = _clipboard.GetLength(1);
             
             IterateBounds(width, height,
-                (_selectStart.X, _selectStart.Y - height + 1), true,
+                (x, y - height + 1), true,
                 (c, v1, v2) =>
                 {
                     c.PushCell(v2.X, v2.Y, _clipboard[v1.X, v1.Y]);
                 });
             
-            _gm.Highlight = new RectangleI(_selectStart.X, _selectStart.Y + 1, width, height);
+            _gm.Highlight = new RectangleI(x, y + 1, width, height);
         }
         private void IterateBounds(int width, int height, Vector2I start, bool write, Action<IChunk, Vector2I, Vector2I> act)
         {
@@ -494,8 +558,6 @@ namespace cgl
         {
             RectangleI bounds = _gm.Highlight;
             if (bounds.Width == 0 || bounds.Height == 0) { return; }
-            
-            _clipboard = new byte[bounds.Width, bounds.Height];
             
             IterateBounds(bounds.Width, bounds.Height,
                 (bounds.Left, bounds.Bottom), true,

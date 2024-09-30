@@ -9,6 +9,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net5.0</TargetFramework>
+    <DefineConstants>TARGET_64BIT</DefineConstants>
   </PropertyGroup>
   
   <ItemGroup>
@@ -19,5 +20,9 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
+  
+  <PropertyGroup Condition="'$(Platform)'=='x64'">
+	  <DefineConstants>TARGET_64BIT</DefineConstants>
+  </PropertyGroup>
   
 </Project>

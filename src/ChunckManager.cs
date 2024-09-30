@@ -26,7 +26,7 @@ namespace cgl
         {
             ChunkSize = size;
             _chunks = new ConcurrentDictionary<Vector2I, CK>();
-            //Chunks = new ChunkTable();
+            // _chunks = new HashTable<Vector2I, CK>(50);
         }
         
         public Vector2I ChunkSize { get; }
@@ -34,7 +34,7 @@ namespace cgl
         public bool ApplingRules => _inIteration;
         
         private ConcurrentDictionary<Vector2I, CK> _chunks;
-        //public ChunkTable Chunks { get; }
+        // private HashTable<Vector2I, CK> _chunks;
         
         private bool _inIteration = false;
         public void ApplyRules()
@@ -63,19 +63,30 @@ namespace cgl
                 kvp.Value.Done();
                 c.ApplyFrame();
             }
-            // Chunks.Iterate(c =>
+            // _inIteration = true;
+            // _chunks.Iterate(kvp =>
             // {
+            //     if (kvp.Value.it) { return; }
+            //     IChunk c = kvp.Value.c;
             //     c.CalculateRules(this);
+            // }, 1);
+            // _inIteration = false;
+            // _chunks.Iterate(kvp =>
+            // {
+            //     IChunk c = kvp.Value.c;
             //     if (c.ShouldDelete())
             //     {
+            //         kvp.Value.delC++;
+            //         if (kvp.Value.delC > 3) { goto Apply; }
             //         c.InUse = false;
-            //         Chunks.Remove(c.Location);
+            //         _chunks.Remove(kvp.Key);
+            //         return;
             //     }
-            // });
-            // Chunks.Iterate(c =>
-            // {
+            //     kvp.Value.delC = 0;
+            // Apply:
+            //     kvp.Value.Done();
             //     c.ApplyFrame();
-            // });
+            // }, 1);
         }
         public IChunk AddChunk(Vector2I location)
         {
@@ -83,11 +94,11 @@ namespace cgl
             c.InUse = true;
             //c.Location = location;
             
-            bool sess = _chunks.TryAdd(location, new CK(c, _inIteration));
-            if (!sess)
-            {
-                throw new Exception();
-            }
+            _chunks.TryAdd(location, new CK(c, _inIteration));
+            // if (!sess)
+            // {
+            //     throw new Exception();
+            // }
             return c;
         }
         public IChunk GetChunkRead(Vector2I location)
@@ -135,6 +146,7 @@ namespace cgl
         }
         public void Iterate(Action<Vector2I, IChunk> action)
         {
+            // _chunks.Iterate(kvp => action(kvp.Key, kvp.Value.c), 1);
             foreach (KeyValuePair<Vector2I, CK> kvp in _chunks)
             {
                 action(kvp.Key, kvp.Value.c);

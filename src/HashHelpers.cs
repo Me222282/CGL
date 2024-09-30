@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 
 namespace cgl
 {
-    internal static partial class HashHelpers
+    internal static class HashHelpers
     {
         public const uint HashCollisionThreshold = 100;
  
